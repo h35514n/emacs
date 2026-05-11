@@ -127,13 +127,13 @@ BASE_APT_PACKAGES=(
   ca-certificates
   curl
   emacs-nox
+  fd-find
   git
   ripgrep
 )
 
 LANG_APT_PACKAGES=(
   build-essential
-  fd-find
   jq
   libgccjit0
   nodejs
@@ -149,6 +149,7 @@ BASE_DNF_PACKAGES=(
   ca-certificates
   curl
   emacs-nox
+  fd-find
   git
   ripgrep
 )
@@ -454,6 +455,8 @@ if [ "${LINK_CONFIG}" = "1" ]; then
   link_into_dotfiles
   log "Linking ~/.config/emacs to ~/.dotfiles/config/emacs"
   link_into_xdg
+  log "Linking /usr/bin/fdfind to /usr/bin/fd"
+  sudo ln -s /usr/bin/fdfind /usr/bin/fd
 fi
 
 if [ "${INSTALL_LANGUAGE_TOOLS}" = "1" ]; then
