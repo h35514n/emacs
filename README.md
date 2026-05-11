@@ -56,6 +56,13 @@ directories, links this checkout to `~/.dotfiles/config/emacs` and
 `~/.config/emacs`, and bootstraps straight.el and all packages by
 running Emacs in batch mode.
 
+If the distro-default Emacs is older than 29, the script attempts to
+upgrade. On Debian it configures `<codename>-backports` (e.g.
+`bookworm-backports`) and reinstalls `emacs-nox` from there. On other
+distros it warns and continues with the older Emacs — the bootstrap
+will still run, falling back to plain `emacs --batch` via the
+`~/.config/emacs` symlink on Emacs 27/28.
+
 Manual setup is:
 
 ``` sh

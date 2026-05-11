@@ -204,6 +204,93 @@ install_packages() {
   esac
 }
 
+emacs_major_version() {
+  emacs --version 2>/dev/null \
+    | head -n 1 \
+    | sed -E 's/.*Emacs[[:space:]]+([0-9]+).*/\1/'
+}
+
+MIN_EMACS_MAJOR=29
+
+ensure_modern_emacs() {
+  if ! have emacs; then
+    return
+  fi
+
+  local major
+  major="$(emacs_major_version)"
+  if ! [[ "${major}" =~ ^[0-9]+$ ]]; then
+    warn "could not parse Emacs version from 'emacs --version'"
+    return
+  fi
+
+  if [ "${major}" -ge "${MIN_EMACS_MAJOR}" ]; then
+    log "Found Emacs ${major}"
+    return
+  fi
+
+  log "Found Emacs ${major}; need ${MIN_EMACS_MAJOR}+. Attempting upgrade."
+
+  case "${PACKAGE_MANAGER}" in
+    apt)
+      upgrade_emacs_via_debian_backports
+      ;;
+    *)
+      warn "no automated upgrade path for Emacs ${major} on ${PACKAGE_MANAGER}; continuing"
+      return
+      ;;
+  esac
+
+  major="$(emacs_major_version)"
+  if [[ "${major}" =~ ^[0-9]+$ ]] && [ "${major}" -ge "${MIN_EMACS_MAJOR}" ]; then
+    log "Emacs upgraded to ${major}"
+  else
+    warn "Emacs upgrade attempt did not yield ${MIN_EMACS_MAJOR}+ (now: ${major:-unknown})"
+  fi
+}
+
+upgrade_emacs_via_debian_backports() {
+  if [ ! -r /etc/os-release ]; then
+    warn "/etc/os-release missing; cannot determine distro for backports"
+    return
+  fi
+
+  local distro_id codename
+  # shellcheck source=/dev/null
+  distro_id="$(. /etc/os-release && printf '%s' "${ID:-}")"
+  # shellcheck source=/dev/null
+  codename="$(. /etc/os-release && printf '%s' "${VERSION_CODENAME:-}")"
+
+  if [ "${distro_id}" != "debian" ]; then
+    warn "backports upgrade only implemented for Debian (found ID=${distro_id:-unknown}); skipping"
+    return
+  fi
+
+  if [ -z "${codename}" ]; then
+    warn "could not determine Debian codename from /etc/os-release; skipping backports"
+    return
+  fi
+
+  local sources_file="/etc/apt/sources.list.d/${codename}-backports.sources"
+  log "Configuring ${codename}-backports at ${sources_file}"
+
+  if [ "${DRY_RUN}" = "1" ]; then
+    printf '+ write %q with %s-backports sources\n' "${sources_file}" "${codename}"
+  else
+    as_root tee "${sources_file}" >/dev/null <<EOF
+Types: deb deb-src
+URIs: https://deb.debian.org/debian
+Suites: ${codename}-backports
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+  fi
+
+  as_root apt-get update
+  as_root env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y -t "${codename}-backports" emacs-nox
+}
+
 install_language_tools() {
   if have python3; then
     if have pipx; then
@@ -268,12 +355,6 @@ link_into_xdg() {
   fi
 }
 
-emacs_major_version() {
-  emacs --version 2>/dev/null \
-    | head -n 1 \
-    | sed -E 's/.*Emacs[[:space:]]+([0-9]+).*/\1/'
-}
-
 bootstrap_packages() {
   if ! have emacs; then
     warn "emacs is not installed; skipping bootstrap"
@@ -287,7 +368,7 @@ bootstrap_packages() {
     return
   fi
 
-  if [ "${major}" -ge 29 ]; then
+  if [ "${major}" -ge "${MIN_EMACS_MAJOR}" ]; then
     run emacs --init-directory="${DOTFILES_CONFIG_EMACS}" --batch \
       --eval '(kill-emacs 0)'
   elif [ "${LINK_CONFIG}" = "1" ]; then
@@ -357,6 +438,9 @@ esac
 
 log "Installing OS packages"
 install_packages "${PACKAGE_MANAGER}" "${packages[@]}"
+
+log "Checking Emacs version"
+ensure_modern_emacs
 
 log "Creating ~/.dotfiles directories"
 run mkdir -p \
