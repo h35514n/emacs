@@ -7,8 +7,9 @@
 
 (eval-and-compile
   (defconst dm-config-home (file-name-as-directory (file-truename "~/.config/emacs")))
-  ;; Trust config directory
-  (add-to-list 'trusted-content (abbreviate-file-name dm-config-home))
+  ;; Trust config directory (Emacs 30+)
+  (when (boundp 'trusted-content)
+    (add-to-list 'trusted-content (abbreviate-file-name dm-config-home)))
   ;; Add submodule directory to load path
   (add-to-list 'load-path (expand-file-name "config/" dm-config-home))
   ;; For Flymake: Add straight.el build directories to load path at compile time

@@ -1,0 +1,389 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: bin/setup [options]
+
+Set up this Emacs config on a remote Linux host. Intended for disposable or
+semi-disposable SSH environments on cloud VMs.
+
+Options:
+  --minimal             Install only Emacs, git, curl, ripgrep.
+  --with-language-tools Install optional compilers, linters, and formatters.
+  --no-link             Do not symlink this directory into ~/.dotfiles or XDG.
+  --no-bootstrap        Do not run the batch Emacs bootstrap (straight.el +
+                        packages).
+  --no-shell-init       Do not touch ~/.bashrc or ~/.zshrc.
+  --dry-run             Print commands without running them.
+  -h, --help            Show this help.
+USAGE
+}
+
+log() {
+  printf '==> %s\n' "$*"
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+run() {
+  if [ "${DRY_RUN}" = "1" ]; then
+    printf '+'
+    printf ' %q' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+as_root() {
+  if [ "$(id -u)" -eq 0 ]; then
+    run "$@"
+  elif have sudo; then
+    run sudo "$@"
+  else
+    die "this step needs root privileges; install sudo or run as root"
+  fi
+}
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+EMACS_CONFIG_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
+
+DRY_RUN=0
+LINK_CONFIG=1
+BOOTSTRAP_PACKAGES=1
+INSTALL_LANGUAGE_TOOLS=0
+INSTALL_SHELL_INIT=1
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --minimal)
+      INSTALL_LANGUAGE_TOOLS=0
+      ;;
+    --with-language-tools)
+      INSTALL_LANGUAGE_TOOLS=1
+      ;;
+    --no-link)
+      LINK_CONFIG=0
+      ;;
+    --no-bootstrap)
+      BOOTSTRAP_PACKAGES=0
+      ;;
+    --no-shell-init)
+      INSTALL_SHELL_INIT=0
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+case "$(uname -s)" in
+  Linux)
+    ;;
+  *)
+    die "this setup script is only intended for remote Linux hosts"
+    ;;
+esac
+
+if [ -n "${SSH_CONNECTION:-}" ] || [ -n "${AWS_EXECUTION_ENV:-}" ] || [ -n "${EC2_HOME:-}" ] || [ -n "${CLOUDSDK_CONFIG:-}" ]; then
+  :
+elif [ -r /sys/class/dmi/id/product_name ] &&
+  grep -Eqi 'Google Compute Engine|Amazon EC2' /sys/class/dmi/id/product_name; then
+  :
+else
+  warn "could not confirm SSH/GCP/AWS environment; continuing because this is Linux"
+fi
+
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
+
+DOTFILES_HOME="${HOME}/.dotfiles"
+DOTFILES_CONFIG_EMACS="${DOTFILES_HOME}/config/emacs"
+DOTFILES_CACHE_EMACS="${DOTFILES_HOME}/cache/emacs"
+DOTFILES_DATA_EMACS="${DOTFILES_HOME}/share/emacs"
+DOTFILES_STATE_EMACS="${DOTFILES_HOME}/state/emacs"
+
+BASE_APT_PACKAGES=(
+  ca-certificates
+  curl
+  emacs-nox
+  git
+  ripgrep
+)
+
+LANG_APT_PACKAGES=(
+  build-essential
+  fd-find
+  jq
+  libgccjit0
+  nodejs
+  npm
+  python3-pip
+  shellcheck
+  shfmt
+  universal-ctags
+  yamllint
+)
+
+BASE_DNF_PACKAGES=(
+  ca-certificates
+  curl
+  emacs-nox
+  git
+  ripgrep
+)
+
+LANG_DNF_PACKAGES=(
+  gcc
+  jq
+  libgccjit
+  make
+  nodejs
+  npm
+  python3-pip
+  ShellCheck
+  shfmt
+  ctags
+  yamllint
+)
+
+detect_package_manager() {
+  if have apt-get; then
+    printf 'apt\n'
+  elif have dnf; then
+    printf 'dnf\n'
+  elif have yum; then
+    printf 'yum\n'
+  else
+    die "could not find apt-get, dnf, or yum"
+  fi
+}
+
+install_packages() {
+  local manager="$1"
+  shift
+
+  if [ "$#" -eq 0 ]; then
+    return
+  fi
+
+  case "${manager}" in
+    apt)
+      as_root apt-get update
+      as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+      ;;
+    dnf)
+      as_root dnf install -y "$@"
+      ;;
+    yum)
+      as_root yum install -y "$@"
+      ;;
+    *)
+      die "unsupported package manager: ${manager}"
+      ;;
+  esac
+}
+
+install_language_tools() {
+  if have python3; then
+    if have pipx; then
+      run pipx install ruff
+    elif have python3 && python3 -m pip --version >/dev/null 2>&1; then
+      run python3 -m pip install --user --upgrade ruff
+    else
+      warn "python3 pip is not available; skipping ruff"
+    fi
+  fi
+
+  if have npm; then
+    run npm install --global eslint prettier
+  else
+    warn "npm is not available; skipping eslint and prettier"
+  fi
+}
+
+link_into_dotfiles() {
+  local dest="${DOTFILES_CONFIG_EMACS}"
+
+  run mkdir -p "$(dirname "${dest}")"
+
+  if [ "${EMACS_CONFIG_DIR}" = "${dest}" ]; then
+    return
+  fi
+
+  if [ -L "${dest}" ]; then
+    local target
+    target="$(readlink "${dest}")"
+    if [ "${target}" = "${EMACS_CONFIG_DIR}" ]; then
+      return
+    fi
+    run rm -f "${dest}"
+  elif [ -e "${dest}" ]; then
+    run mv "${dest}" "${dest}.bak.$(date +%Y%m%d%H%M%S)"
+  fi
+
+  run ln -s "${EMACS_CONFIG_DIR}" "${dest}"
+}
+
+link_into_xdg() {
+  local dest="${XDG_CONFIG_HOME}/emacs"
+
+  run mkdir -p "${XDG_CONFIG_HOME}"
+
+  if [ -L "${dest}" ]; then
+    local target
+    target="$(readlink "${dest}")"
+    if [ "${target}" = "${DOTFILES_CONFIG_EMACS}" ]; then
+      return
+    fi
+    run rm -f "${dest}"
+  elif [ -e "${dest}" ]; then
+    run mv "${dest}" "${dest}.bak.$(date +%Y%m%d%H%M%S)"
+  fi
+
+  run ln -s "${DOTFILES_CONFIG_EMACS}" "${dest}"
+
+  if [ -e "${HOME}/.emacs.d" ] && [ ! -L "${HOME}/.emacs.d" ]; then
+    warn "${HOME}/.emacs.d exists and will shadow ${dest}; move or remove it"
+  fi
+}
+
+emacs_major_version() {
+  emacs --version 2>/dev/null \
+    | head -n 1 \
+    | sed -E 's/.*Emacs[[:space:]]+([0-9]+).*/\1/'
+}
+
+bootstrap_packages() {
+  if ! have emacs; then
+    warn "emacs is not installed; skipping bootstrap"
+    return
+  fi
+
+  local major
+  major="$(emacs_major_version)"
+  if ! [[ "${major}" =~ ^[0-9]+$ ]]; then
+    warn "could not parse Emacs version from 'emacs --version'; skipping bootstrap"
+    return
+  fi
+
+  if [ "${major}" -ge 29 ]; then
+    run emacs --init-directory="${DOTFILES_CONFIG_EMACS}" --batch \
+      --eval '(kill-emacs 0)'
+  elif [ "${LINK_CONFIG}" = "1" ]; then
+    # Emacs <29 has no --init-directory; rely on the XDG symlink at
+    # ~/.config/emacs that link_into_xdg already created.
+    run emacs --batch --eval '(kill-emacs 0)'
+  else
+    warn "Emacs ${major} predates --init-directory and --no-link was set; skipping bootstrap"
+  fi
+}
+
+write_alias_to_shell_rc() {
+  local alias_line="alias emacs='XDG_CONFIG_HOME=\"${DOTFILES_HOME}/config\" emacs'"
+  local shell_name shell_rc
+
+  if [ "${LINK_CONFIG}" = "1" ]; then
+    return
+  fi
+
+  shell_name="$(basename "${SHELL:-}")"
+  case "${shell_name}" in
+    zsh)
+      shell_rc="${HOME}/.zshrc"
+      ;;
+    bash)
+      shell_rc="${HOME}/.bashrc"
+      ;;
+    *)
+      warn "unrecognized SHELL='${SHELL:-}'; skipping emacs alias"
+      printf '\nAdd this to your shell profile manually:\n\n  %s\n\n' "${alias_line}"
+      return
+      ;;
+  esac
+
+  if [ -f "${shell_rc}" ] && grep -Eq "^[[:space:]]*alias[[:space:]]+emacs=" "${shell_rc}"; then
+    log "emacs alias already present in ${shell_rc}; leaving as is"
+    return
+  fi
+
+  if [ "${DRY_RUN}" = "1" ]; then
+    printf '+ append %q to %q\n' "${alias_line}" "${shell_rc}"
+    return
+  fi
+
+  printf '\n# Added by emacs/bin/setup\n%s\n' "${alias_line}" >>"${shell_rc}"
+  log "Appended emacs alias to ${shell_rc} (open a new shell or 'source ${shell_rc}')"
+}
+
+PACKAGE_MANAGER="$(detect_package_manager)"
+
+log "Using package manager: ${PACKAGE_MANAGER}"
+
+case "${PACKAGE_MANAGER}" in
+  apt)
+    packages=("${BASE_APT_PACKAGES[@]}")
+    if [ "${INSTALL_LANGUAGE_TOOLS}" = "1" ]; then
+      packages+=("${LANG_APT_PACKAGES[@]}")
+    fi
+    ;;
+  dnf|yum)
+    packages=("${BASE_DNF_PACKAGES[@]}")
+    if [ "${INSTALL_LANGUAGE_TOOLS}" = "1" ]; then
+      packages+=("${LANG_DNF_PACKAGES[@]}")
+    fi
+    ;;
+esac
+
+log "Installing OS packages"
+install_packages "${PACKAGE_MANAGER}" "${packages[@]}"
+
+log "Creating ~/.dotfiles directories"
+run mkdir -p \
+  "${DOTFILES_HOME}/config" \
+  "${DOTFILES_CACHE_EMACS}" \
+  "${DOTFILES_DATA_EMACS}" \
+  "${DOTFILES_STATE_EMACS}"
+
+if [ "${LINK_CONFIG}" = "1" ]; then
+  log "Linking Emacs config into ~/.dotfiles/config/emacs"
+  link_into_dotfiles
+  log "Linking ~/.config/emacs to ~/.dotfiles/config/emacs"
+  link_into_xdg
+fi
+
+if [ "${INSTALL_LANGUAGE_TOOLS}" = "1" ]; then
+  log "Installing optional language tools"
+  install_language_tools
+fi
+
+if [ "${BOOTSTRAP_PACKAGES}" = "1" ]; then
+  log "Bootstrapping straight.el and installing packages (this can take several minutes)"
+  bootstrap_packages
+fi
+
+if [ "${INSTALL_SHELL_INIT}" = "1" ]; then
+  write_alias_to_shell_rc
+fi
+
+log "Done"
