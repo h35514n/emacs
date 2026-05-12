@@ -11,11 +11,13 @@
 (declare-function evil-insert-state-p "evil-states")
 (declare-function evil-visual-state-p "evil-states")
 
+;;;###autoload
 (defun dm-text-kill-line ()
   "Kill the current line starting from the current position."
   (interactive)
   (kill-line 0))
 
+;;;###autoload
 (defun dm-text-kill-line-bti ()
   "Kill backward to the first non-whitespace character.
 

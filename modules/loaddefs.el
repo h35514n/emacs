@@ -203,6 +203,13 @@ in `dm-quit-or-close-popup-buffer-names' or starts with one of
 
 ;;; Generated autoloads from dm-text.el
 
+(autoload 'dm-text-kill-line "dm-text"
+"Kill the current line starting from the current position." t)
+(autoload 'dm-text-kill-line-bti "dm-text"
+"Kill backward to the first non-whitespace character.
+
+If point is at the first non-whitespace character, kill backward to the
+start of the line instead." t)
 (autoload 'dm-text-latex-wrap-as-math "dm-text"
 "Wrap selected text, or text around point, in LaTeX math delimiters.
 With DISPLAYMODE-P, use display math delimiters.
