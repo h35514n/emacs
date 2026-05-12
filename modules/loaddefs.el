@@ -293,6 +293,11 @@ otherwise kill Emacs." t)
 
 ;;; Generated autoloads from dm-util.el
 
+(autoload 'dm-util-open-pdf-at-right "dm-util"
+"Open the pdf FILENAME in a new buffer to the right of the current buffer.
+If already open, reload it.
+
+(fn FILENAME)" t)
 (register-definition-prefixes "dm-util" '("dm-util-"))
 
 

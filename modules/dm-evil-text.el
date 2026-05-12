@@ -7,6 +7,39 @@
 (require 'cl-lib)
 (require 'evil)
 
+;; ----------------------
+;; Word char adjustments
+;; ----------------------
+
+(defun dm-evil-text--add-dot-to-word-chars-h ()
+  "Add dot to the word chars syntax entry list."
+  (modify-syntax-entry ?. "w"))
+
+(defun dm-evil-text--add-underscore-to-word-chars-h ()
+  "Add underscore to the word chars syntax entry list."
+  (modify-syntax-entry ?_ "w"))
+
+(defun dm-evil-text--add-dash-to-word-chars-h ()
+  "Add dash to the word chars syntax entry list."
+  (modify-syntax-entry ?- "w"))
+
+(defun dm-evil-text--add-to-word-char-list ()
+  "Customize the word char list in prog and other modes."
+  (add-hook 'LaTeX-mode-hook #'dm-evil-text--add-dot-to-word-chars-h)
+  (add-hook 'emacs-lisp-mode-hook #'dm-evil-text--add-dash-to-word-chars-h)
+  (add-hook 'latex-mode-hook #'dm-evil-text--add-dot-to-word-chars-h)
+  (add-hook 'markdown-mode-hook #'dm-evil-text--add-underscore-to-word-chars-h)
+  (add-hook 'org-mode-hook #'dm-evil-text--add-underscore-to-word-chars-h)
+  (add-hook 'prog-mode-hook #'dm-evil-text--add-dash-to-word-chars-h)
+  (add-hook 'prog-mode-hook #'dm-evil-text--add-underscore-to-word-chars-h)
+  (add-hook 'python-mode-hook #'dm-evil-text--add-underscore-to-word-chars-h)
+  (add-hook 'text-mode-hook #'dm-evil-text--add-underscore-to-word-chars-h)
+  nil)
+
+;; ------------
+;; Text objects
+;; ------------
+
 (defmacro dm-evil-text--define-and-bind-text-object (name key start-regex end-regex)
   "Define inner and outer Evil text objects named NAME on KEY.
 START-REGEX and END-REGEX are passed to `evil-select-paren'."
@@ -19,6 +52,10 @@ START-REGEX and END-REGEX are passed to `evil-select-paren'."
          (evil-select-paren ,start-regex ,end-regex beg end type count t))
        (define-key evil-inner-text-objects-map ,key #',inner-name)
        (define-key evil-outer-text-objects-map ,key #',outer-name))))
+
+;; ------------
+;; Sort motion
+;; ------------
 
 (defun dm-evil-text-sort-inner (textobj &optional desc)
   "Sort inside the TEXTOBJ surrounding point.
@@ -63,6 +100,10 @@ With prefix argument DESC, sort in descending order."
   (interactive "P")
   (dm-evil-text-sort-inner 'bracket desc))
 
+;; ---------------
+;; Change behavior
+;; ---------------
+
 (defun dm-evil-text-change-back-to-indentation ()
   "Delete current line contents back to indentation and enter Evil insert state.
 
@@ -83,6 +124,10 @@ Then enter Evil insert state."
   (interactive)
   (kill-line)
   (evil-insert-state))
+
+;; ---------------
+;; Setup
+;; ---------------
 
 ;;;###autoload
 (defun dm-evil-text-setup ()
@@ -120,6 +165,9 @@ Then enter Evil insert state."
     (kbd "]h") #'diff-hl-show-hunk-next
     (kbd "[t") #'tab-bar-switch-to-prev-tab
     (kbd "]t") #'tab-bar-switch-to-next-tab)
+
+  ;; word chars
+  (dm-evil-text--add-to-word-char-list)
 
   ;; line changes
   (evil-define-key* 'normal 'global
