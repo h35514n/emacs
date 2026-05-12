@@ -5,6 +5,7 @@
 ;; Buffer-local editing ergonomics: local Evil bindings, scratch/workspace
 ;; behavior, formatting, completion-at-point, snippets, web helpers, and simple
 ;; folding fallback. Language-server and tree-sitter setup live elsewhere.
+;; TODO: Move `dm-text-*' to with dm-text
 
 ;;; Code:
 

@@ -67,7 +67,7 @@ With prefix argument DESC, sort in descending order."
   "Delete current line contents back to indentation and enter Evil insert state.
 
 This preserves leading indentation and removes everything from the first
-non-whitespace character through the end of the line."
+non-whitespace character through the current position."
   (interactive)
   (let ((indent-pos (save-excursion
                       (back-to-indentation)
