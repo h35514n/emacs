@@ -56,10 +56,8 @@
     ;; Hide file-loading sources from default consult-buffer view; still
     ;; accessible by narrowing (r recent, p project, m bookmarks).
     (consult-customize
-     consult-source-recent-file
      consult-source-project-recent-file
      consult-source-project-recent-file-hidden
-     consult-source-bookmark
      :hidden t)
     (defvar consult-source-workspace
       (list :name     "Workspace buffers"
