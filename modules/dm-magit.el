@@ -12,7 +12,7 @@
 (declare-function magit-commit-create "magit-commit")
 (declare-function corfu-mode "corfu")
 
-(defvar dm-magit-pending-generated-commit-message nil
+(defvar dm-magit--pending-generated-commit-message nil
   "Generated commit message waiting to be inserted into a commit buffer.")
 
 (defun dm-git-commit-message-region-end ()
@@ -26,9 +26,9 @@
 ;;;###autoload
 (defun dm-git-commit-insert-pending-generated-message ()
   "Insert pending generated commit message into the current commit buffer."
-  (when dm-magit-pending-generated-commit-message
-    (let ((message dm-magit-pending-generated-commit-message))
-      (setq dm-magit-pending-generated-commit-message nil)
+  (when dm-magit--pending-generated-commit-message
+    (let ((message dm-magit--pending-generated-commit-message))
+      (setq dm-magit--pending-generated-commit-message nil)
       (goto-char (point-min))
       (delete-region (point-min) (dm-git-commit-message-region-end))
       (insert message)
@@ -55,7 +55,7 @@ Optionally, a string STEERING can be provided to tailor the content."
   "Generate a commit message, then open Magit's commit buffer."
   (interactive)
   (let ((steering (read-string "Steering, optional: ")))
-    (setq dm-magit-pending-generated-commit-message
+    (setq dm-magit--pending-generated-commit-message
           (dm-git-commit-generated-message steering))
     (magit-commit-create)))
 
