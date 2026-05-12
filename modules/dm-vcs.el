@@ -69,7 +69,8 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
         magit-save-repository-buffers nil
         magit-git-executable (or (executable-find "git") "git"))
   :custom
-  (magit-display-buffer-function #'dm-magit-display-buffer-fn)
+  (magit-display-buffer-function #'magit-display-buffer-fullframe-status-v1)
+  (magit-bury-buffer-function #'magit-restore-window-configuration)
   (magit-commit-show-diff t)
   :config
   ;; Remove sections to speed up load.
