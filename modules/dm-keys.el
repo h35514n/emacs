@@ -156,8 +156,12 @@
    ;; Global keybindings not under SPC. These are mostly for window and buffer
    ;; management, since those are the most common commands and benefit most from
    ;; being available everywhere without a prefix.
-     "C-,"     #'embark-dwim
-     "C-g"     #'dm-quit-or-close-popup)
+     "C-," #'embark-dwim
+     "C-g" #'dm-quit-or-close-popup
+     "M-h" #'windmove-left
+     "M-k" #'windmove-up
+     "M-j" #'windmove-down
+     "M-l" #'windmove-right)
 
   (defun dm-bind-gui-keys (&optional frame)
     "Set up keybindings specific to GUI Emacs.
