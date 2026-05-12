@@ -11,6 +11,26 @@
 (declare-function evil-insert-state-p "evil-states")
 (declare-function evil-visual-state-p "evil-states")
 
+(defun dm-text-kill-line ()
+  "Kill the current line starting from the current position."
+  (interactive)
+  (kill-line 0))
+
+(defun dm-text-kill-line-bti ()
+  "Kill backward to the first non-whitespace character.
+
+If point is at the first non-whitespace character, kill backward to the
+start of the line instead."
+  (interactive)
+  (let ((indent-pos (save-excursion
+                      (back-to-indentation)
+                      (point)))
+        (curr-pos (point)))
+    (if (= curr-pos indent-pos)
+        (kill-region (line-beginning-position) curr-pos)
+      (kill-region indent-pos curr-pos)
+      (goto-char indent-pos))))
+
 (defun dm-text-point-on-empty-line-p ()
   "Return t if the point is on an empty line, nil otherwise."
   (interactive)

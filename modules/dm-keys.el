@@ -166,6 +166,7 @@
       (when (display-graphic-p)
           (progn ; GUI-only config
             (general-define-key
+             "s-<backspace>" #'dm-text-kill-line-bti
              "s-["   #'previous-buffer
              "s-]"   #'next-buffer
              "s-{"   #'tab-bar-switch-to-prev-tab
