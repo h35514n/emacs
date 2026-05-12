@@ -301,6 +301,10 @@ If already open, reload it.
 (register-definition-prefixes "dm-util" '("dm-util-"))
 
 
+;;; Generated autoloads from dm-org.el
+
+(register-definition-prefixes "dm-org" '("dm-org-"))
+
 ;;; End of scraped data
 
 (provide 'loaddefs)

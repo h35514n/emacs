@@ -4,6 +4,15 @@
 
 ;;; Code:
 
+(defun dm-util-list-sans (list-var &rest elements)
+  "Remove ELEMENTS from the list LIST-VAR.
+
+   Usage:
+    (setq my-list '(a b c d e f))
+    (remove-from-list 'my-list 'b 'd 'f)
+    #=> '(a c e)"
+  (cl-remove-if (lambda (x) (member x elements)) list-var))
+
 (defun dm-util-working-dir (&optional directory)
   "Return the project root for DIRECTORY, or DIRECTORY/default-directory.
 
