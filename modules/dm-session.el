@@ -19,7 +19,7 @@
   ;; Avoid reusing the initial frame during desktop restore, which can override
   ;; the frame size/maximization established during early init.
   (desktop-restore-reuses-frames t)
-  (desktop-restore-frames t)
+  (desktop-restore-frames nil)
   :config
   (defun dm-desktop-file ()
     "Return the full path to the configured desktop file."
