@@ -53,10 +53,11 @@
     "f p"   '(dm-open-config-new-tab :which-key "emacs init")
     "f r"   '(consult-recent-file    :which-key "recent files")
     "f o"   '(dm-file-open           :which-key "open")
-    "f y"   '(:ignore t              :which-key "yank")
-    "f y p" '(dm-copy-file-path-dwim :which-key "path")
-    "f y a" '(dm-copy-file-abspath   :which-key "/ path")
-    "f y h" '(dm-copy-file-path      :which-key "~ path")
+    "f y"     '(:ignore t                 :which-key "yank")
+    "f y RET" '(dm-copy-file-path-dwim    :which-key "dwim")
+    "f y p"   '(dm-copy-file-project-path :which-key "proj-root-relative")
+    "f y a"   '(dm-copy-file-abspath      :which-key "absolute")
+    "f y h"   '(dm-copy-file-path         :which-key "abbreviated")
 
     ;; Search
     "s"   '(:ignore t                   :which-key "search")
