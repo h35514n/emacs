@@ -63,19 +63,6 @@
   :config
   (global-evil-surround-mode 1))
 
-(use-package evil-embrace
-  :after evil-surround
-  :config
-  (with-eval-after-load 'org
-    (add-hook 'org-mode-hook 'embrace-org-mode-hook))
-  ;; Route single-char fence delimiters through evil-surround so `cs-_'
-  ;; etc. resolve via the text objects in `dm-evil-text-setup'. Anything
-  ;; outside this list goes to embrace, which requires `embrace-add-pair'.
-  (setq-default evil-embrace-evil-surround-keys
-                (append (default-value 'evil-embrace-evil-surround-keys)
-                        '(?- ?_ ?| ?/ ?$)))
-  (evil-embrace-enable-evil-surround-integration))
-
 (use-package evil-iedit-state
   :commands (evil-iedit-state/iedit-mode evil-iedit-state)
   :custom (iedit-toggle-key-default nil))
