@@ -11,6 +11,61 @@
 (declare-function evil-insert-state-p "evil-states")
 (declare-function evil-visual-state-p "evil-states")
 
+
+;;;###autoload
+(defun dm-text-toggle-symbol-list-layout-at-point ()
+  "Toggle the innermost symbol list at point between vertical and inline forms.
+
+When expanding vertically, sort the symbols alphabetically.
+Point should be inside a simple list of symbols, for example:
+
+  '(consult corfu diff-hl dired)
+
+The leading quote is preserved when present."
+  (interactive)
+  (save-excursion
+    (let (beg end quoted-p form)
+      ;; Move to the opening paren of the innermost containing list.
+      (condition-case nil
+          (backward-up-list 1)
+        (scan-error
+         (user-error "Point is not inside a list")))
+
+      (setq beg (point))
+      (setq end (scan-sexps beg 1))
+      (setq quoted-p (save-excursion
+                       (goto-char beg)
+                       (eq (char-before) ?')))
+
+      ;; Read the list itself, not the preceding quote.
+      (setq form (read (buffer-substring-no-properties beg end)))
+      (unless (and (proper-list-p form)
+                   (seq-every-p #'symbolp form))
+        (user-error "Innermost form is not a simple list of symbols"))
+
+      (let* ((delete-beg (if quoted-p (1- beg) beg))
+             (original (buffer-substring-no-properties delete-beg end))
+             (vertical-p (string-match-p "\n[[:space:]\n]*[^[:space:])]" original))
+             (symbols (sort (copy-sequence form) (lambda (a b)
+                                                   (string< (symbol-name a)
+                                                            (symbol-name b)))))
+             (indent (save-excursion (goto-char beg) (current-column)))
+             (replacement (if vertical-p
+                              (concat (if quoted-p "'(" "(")
+                                      (mapconcat #'symbol-name symbols " ")
+                                      ")") ;; Collapse to inline form.
+                            (concat (if quoted-p "'(" "(")
+                                    (mapconcat (lambda (sym)
+                                                 (concat "\n"
+                                                         (make-string (+ indent 2) ?\s)
+                                                         (symbol-name sym)))
+                                               symbols
+                                               "")
+                                    ")") ;; Expand to vertical form.
+                            )))
+        (delete-region delete-beg end)
+        (insert replacement)))))
+
 ;;;###autoload
 (defun dm-text-kill-line ()
   "Kill the current line starting from the current position."

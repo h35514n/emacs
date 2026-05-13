@@ -203,6 +203,15 @@ in `dm-quit-or-close-popup-buffer-names' or starts with one of
 
 ;;; Generated autoloads from dm-text.el
 
+(autoload 'dm-text-toggle-symbol-list-layout-at-point "dm-text"
+"Toggle the innermost symbol list at point between vertical and inline forms.
+
+When expanding vertically, sort the symbols alphabetically.
+Point should be inside a simple list of symbols, for example:
+
+  '(consult corfu diff-hl dired)
+
+The leading quote is preserved when present." t)
 (autoload 'dm-text-kill-line "dm-text"
 "Kill the current line starting from the current position." t)
 (autoload 'dm-text-kill-line-bti "dm-text"
