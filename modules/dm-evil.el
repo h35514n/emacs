@@ -50,8 +50,11 @@
           hideshow
           ibuffer
           imenu
-          magit
+          magit-repos
           magit-section
+          magit-section
+          magit-todos
+          (magit magit-submodule)
           markdown-mode
           org
           vertico
