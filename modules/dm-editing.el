@@ -205,5 +205,13 @@
   :hook ((emacs-lisp-mode . hs-minor-mode)
          (lisp-interaction-mode . hs-minor-mode)))
 
+(use-package olivetti
+  :hook ((org-mode markdown-mode text-mode) . olivetti-mode)
+  :custom
+  (olivetti-body-width 92)
+  (olivetti-minimum-body-width 72)
+  :config
+  (setq-default olivetti-style 'fancy))
+
 (provide 'dm-editing)
 ;;; dm-editing.el ends here
