@@ -52,6 +52,7 @@
     "f h"   '(dm-find-in-home        :which-key "find in ~")
     "f r"   '(consult-recent-file    :which-key "recent files")
     "f o"   '(dm-file-open           :which-key "open")
+    "f p"   '(dm-open-config-new-tab :which-key "emacs init")
     "f y"     '(:ignore t                 :which-key "yank")
     "f y RET" '(dm-copy-file-path-dwim    :which-key "dwim")
     "f y p"   '(dm-copy-file-project-path :which-key "proj-root-relative")
