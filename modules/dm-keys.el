@@ -50,7 +50,6 @@
     "f d"   '(dm-delete-this-file    :which-key "delete")
     "f f"   '(consult-fd             :which-key "find file")
     "f h"   '(dm-find-in-home        :which-key "find in ~")
-    "f p"   '(dm-open-config-new-tab :which-key "emacs init")
     "f r"   '(consult-recent-file    :which-key "recent files")
     "f o"   '(dm-file-open           :which-key "open")
     "f y"     '(:ignore t                 :which-key "yank")
