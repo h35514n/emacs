@@ -15,7 +15,7 @@
   (setq desktop-dirname dm-dir-desktop)
   (setq desktop-base-file-name "emacs.desktop")
   (setq desktop-base-lock-name "emacs.desktop.lock")
-  (setq desktop-load-locked-desktop 'check-pid)
+  (setq desktop-load-locked-desktop t)
   (setq desktop-restore-frames nil)
   (setq desktop-restore-reuses-frames nil) ;; t can restore with the window size broken
   (setq desktop-save t)
