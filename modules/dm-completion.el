@@ -68,6 +68,7 @@
    consult-git-grep
    consult-recent-file
    consult-bookmark
+   consult-recent-file
    consult-source-recent-file
    consult-source-project-recent-file
    consult-source-project-recent-file-hidden
