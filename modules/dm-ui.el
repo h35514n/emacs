@@ -56,13 +56,12 @@ visual wrapping more closely matches the intended `fill-column'."
       (dm-wrapping-disable)
     (dm-wrapping-enable)))
 
-(with-eval-after-load 'evil
-  (evil-define-operator evil-unfill (beg end type)
-    "Unfill text in motion/selection."
-    :move-point nil
-    (let ((fill-column most-positive-fixnum))
-      (fill-region beg end)))
-  (define-key evil-normal-state-map "gQ" #'evil-unfill))
+;;;###autoload
+(defun dm-unfill-region (beg end)
+  "Unfill the region from BEG to END by collapsing all hard line breaks."
+  (interactive "r")
+  (let ((fill-column most-positive-fixnum))
+    (fill-region beg end)))
 
 (defun dm-frame-title-project-or-buffer ()
   "Show project name in title bar, falling back to buffer name."
@@ -72,7 +71,7 @@ visual wrapping more closely matches the intended `fill-column'."
 
 ;;; Core display behavior.
 
-;; Relative line numbers match evil's jump-count workflow (e.g. 5j, 12k).
+;; Relative line numbers match meow's jump-count workflow (e.g. 5j, 12k).
 (setq display-line-numbers-type 'relative)
 (global-display-line-numbers-mode 1)
 
@@ -106,14 +105,12 @@ visual wrapping more closely matches the intended `fill-column'."
 (use-package mood-line
   :config
   (setq mood-line-glyph-alist mood-line-glyphs-fira-code)
-  (setq mood-line-segment-modal-evil-state-alist
-        '((normal   "N")
-          (insert   "I" . font-lock-string-face)
-          (visual   "V" . font-lock-keyword-face)
-          (replace  "R" . font-lock-type-face)
-          (motion   "M" . font-lock-constant-face)
-          (operator "O" . font-lock-function-name-face)
-          (emacs    "E" . font-lock-builtin-face)))
+  (setq mood-line-segment-modal-meow-state-alist
+        '((normal . ("N" . font-lock-variable-name-face))
+          (insert . ("I" . font-lock-string-face))
+          (keypad . ("K" . font-lock-keyword-face))
+          (motion . ("M" . font-lock-constant-face))
+          (beacon . ("B" . font-lock-type-face))))
   ;; Segments:
   ;;   * init.el  4:32 Top                                         ELisp  ! Issues: 2
   ;; (setq mood-line-format mood-line-format-default)

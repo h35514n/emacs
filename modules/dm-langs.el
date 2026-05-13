@@ -108,11 +108,10 @@ Eglot's connect call blocks redisplay until the LSP server returns its
                    (:diagnosticMode "openFilesOnly"
                     :useLibraryCodeForTypes :json-false
                     :exclude ["**/venv" "**/env"
-                              "**/dist" "**/build"]))))
-
-  (with-eval-after-load 'evil
-    (evil-define-key 'normal eglot-mode-map
-      (kbd "K") #'eldoc-print-current-symbol-info)))
+                              "**/dist" "**/build"])))))
+;; `K' for eldoc-at-point is promoted to the SPC l k leader path in `dm-keys.el',
+;; since prog-mode buffers run under meow-normal-state and would otherwise
+;; shadow a mode-local `K' binding.
 
 (dolist (hook '(python-base-mode-hook
                 elixir-mode-hook
@@ -203,8 +202,7 @@ and `treesit-auto-langs'."
           (treesit-install-language-grammar lang))))))
 
 (use-package treesit-fold
-  ;; Structural folding for tree-sitter modes; integrates with Evil's z* folds
-  ;; when `treesit-fold-mode' is active in the buffer.
+  ;; Structural folding for tree-sitter modes.
   :straight (treesit-fold :type git
                           :host github
                           :repo "emacs-tree-sitter/treesit-fold")

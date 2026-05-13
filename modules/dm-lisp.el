@@ -47,22 +47,23 @@
          (t
           "top-level form"))))))
 
+(declare-function meow-cancel-selection "meow-command" ())
+
 ;;;###autoload
-(defun dm-evil-eval-sexp-dwim ()
+(defun dm-lisp-eval-sexp-dwim ()
   "Evaluate Elisp DWIM.
 
-If Evil is in visual state, evaluate the selection.
+If a selection is active, evaluate the region.
 Otherwise, if point is inside a same-line list form, evaluate that list.
 Otherwise, evaluate the current top-level form.
 If there is no top-level form, evaluate the buffer."
   (interactive)
   (cond
-   ;; Visual selection
-   ((and (fboundp 'evil-visual-state-p)
-         (evil-visual-state-p))
+   ;; Active selection
+   ((region-active-p)
     (eval-region (region-beginning) (region-end))
     (message "Evaluated region")
-    (evil-normal-state))
+    (meow-cancel-selection))
    ;; Same-line sexp
    ((dm-elisp--same-line-list-bounds)
     (let* ((bounds (dm-elisp--same-line-list-bounds))

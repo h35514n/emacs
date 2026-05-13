@@ -2,36 +2,31 @@
 
 ;;; Commentary:
 
-;; Buffer-local editing ergonomics: local Evil bindings, scratch/workspace
-;; behavior, formatting, completion-at-point, snippets, web helpers, and simple
-;; folding fallback. Language-server and tree-sitter setup live elsewhere.
+;; Buffer-local editing ergonomics: scratch/workspace behavior, formatting,
+;; completion-at-point, snippets, web helpers, and simple folding fallback.
+;; Language-server and tree-sitter setup live elsewhere.
 ;; TODO: Move `dm-text-*' to with dm-text
 
 ;;; Code:
 
-(defun dm-text-formatting-keybindings ()
-  "Bind Super text-formatting commands in the current buffer."
-  (dolist (state '(normal visual insert))
-    (evil-local-set-key state (kbd "s-b") #'dm-text-make-bold)
-    (evil-local-set-key state (kbd "s-i") #'dm-text-make-italic)
-    (evil-local-set-key state (kbd "s-u") #'dm-text-make-underlined)
-    (evil-local-set-key state (kbd "s-X") #'dm-text-make-strikethrough)))
-
-(dolist (hook '(LaTeX-mode-hook
-                latex-mode-hook
-                markdown-mode-hook
-                gfm-mode-hook
-                org-mode-hook))
-  (add-hook hook #'dm-text-formatting-keybindings))
+;; Global super-key text formatting. The underlying commands pcase on
+;; `major-mode' so a single global binding works in every supported buffer.
+(keymap-global-set "s-b" #'dm-text-make-bold)
+(keymap-global-set "s-i" #'dm-text-make-italic)
+(keymap-global-set "s-u" #'dm-text-make-underlined)
+(keymap-global-set "s-X" #'dm-text-make-strikethrough)
 
 (defun dm-text-latex-keybindings ()
-  "Bind latex-formatting commands in the current buffer."
-  (dolist (state '(visual))
-    (evil-local-set-key state (kbd "C-b") #'dm-text-latex-wrap-as-boxed)
-    (evil-local-set-key state (kbd "C-f") #'dm-text-latex-wrap-as-frac)
-    (evil-local-set-key state (kbd "C-e") #'dm-text-latex-evaluate-selection)
-    (evil-local-set-key state (kbd "C-m") #'dm-text-latex-wrap-as-math)
-    (evil-local-set-key state (kbd "C-s") #'dm-text-latex-wrap-as-si)))
+  "Bind LaTeX-formatting commands in the current buffer.
+Bind under `C-c m' (math/markup) so we don't shadow motion: meow's
+`meow-left'/`meow-right' dispatch through `C-b'/`C-f' via
+`meow--execute-kbd-macro', so binding wraps directly on those keys
+would hijack basic motion."
+  (local-set-key (kbd "C-c m b") #'dm-text-latex-wrap-as-boxed)
+  (local-set-key (kbd "C-c m f") #'dm-text-latex-wrap-as-frac)
+  (local-set-key (kbd "C-c m e") #'dm-text-latex-evaluate-selection)
+  (local-set-key (kbd "C-c m m") #'dm-text-latex-wrap-as-math)
+  (local-set-key (kbd "C-c m s") #'dm-text-latex-wrap-as-si))
 
 (dolist (hook '(LaTeX-mode-hook latex-mode-hook))
   (add-hook hook #'dm-text-latex-keybindings))
@@ -75,13 +70,16 @@
 
 (use-package dired
   :straight nil
-  :after evil
-  :init
   :hook ((dired-mode . dired-hide-details-mode))
   :custom
   (dired-listing-switches "-Ah --group-directories-first")
   :config
-  (evil-define-key 'normal 'global (kbd "-") #'dired-jump))
+  ;; Override dired's default `negative-argument' on `-' so it goes up a
+  ;; directory. This works in meow motion state because `dired-mode-map'
+  ;; passes through letters that meow doesn't claim.
+  (keymap-set dired-mode-map "-" #'dired-up-directory))
+
+;; `dired-jump' (globally, via meow normal state) is wired up in `dm-meow.el'.
 
 (use-package visual-fill-column
   :hook ((markdown-mode . visual-line-mode)
@@ -105,20 +103,14 @@
              helpful-key
              helpful-symbol
              helpful-variable)
-  :init
-  (with-eval-after-load 'evil
-    (evil-define-key 'normal emacs-lisp-mode-map
-      (kbd "K") #'helpful-at-point)
-    (evil-define-key 'normal lisp-interaction-mode-map
-      (kbd "K") #'helpful-at-point))
   :config
-  (global-set-key (kbd "C-h f") #'helpful-callable)
-  (global-set-key (kbd "C-h v") #'helpful-variable)
-  (global-set-key (kbd "C-h k") #'helpful-key)
-  (global-set-key (kbd "C-h x") #'helpful-command)
-  (with-eval-after-load 'evil
-    (evil-define-key 'normal helpful-mode-map
-      (kbd "K") #'helpful-at-point)))
+  (keymap-global-set "C-h f" #'helpful-callable)
+  (keymap-global-set "C-h v" #'helpful-variable)
+  (keymap-global-set "C-h k" #'helpful-key)
+  (keymap-global-set "C-h x" #'helpful-command)
+  ;; `helpful-mode' lives in meow motion state so single-key bindings in its
+  ;; own map pass through unhindered.
+  (keymap-set helpful-mode-map "K" #'helpful-at-point))
 
 (use-package apheleia
   :commands (apheleia-format-buffer apheleia-mode apheleia-global-mode)
@@ -192,11 +184,13 @@
    (t (indent-for-tab-command))))
 
 (use-package tempel
-  :after evil
   :bind (:map tempel-map
          ("C-j" . tempel-next)
          ("C-k" . tempel-previous))
   :init
+  ;; Global insert binding for explicit expansion (was bound in insert state
+  ;; under evil; now plain global so it works whenever you're typing).
+  (keymap-global-set "C-." #'tempel-insert)
   (defun dm-tempel-setup-capf ()
     "Add Tempel template expansion before the mode's main CAPF."
     (setq-local completion-at-point-functions
@@ -234,11 +228,21 @@
     (add-to-list 'emmet-jsx-major-modes mode)))
 
 (use-package hideshow
-  ;; Evil's z* folds need one supported backend. Elisp does not always get
-  ;; `treesit-fold-mode', so keep a sexp-based fallback active there.
+  ;; Sexp-based folding fallback for elisp buffers, where tree-sitter doesn't
+  ;; always supply `treesit-fold-mode'.
   :straight nil
   :hook ((emacs-lisp-mode . hs-minor-mode)
          (lisp-interaction-mode . hs-minor-mode)))
+
+(use-package iedit
+  :commands iedit-mode)
+
+;; Mode-local elisp DWIM evaluator. `dm-lisp-eval-sexp-dwim' is autoloaded
+;; from `dm-lisp.el'; binding here ensures the elisp-mode keymap is wired
+;; on first use (also reachable via `SPC c e' through meow's keypad).
+(with-eval-after-load 'elisp-mode
+  (keymap-set emacs-lisp-mode-map       "C-c C-e" #'dm-lisp-eval-sexp-dwim)
+  (keymap-set lisp-interaction-mode-map "C-c C-e" #'dm-lisp-eval-sexp-dwim))
 
 (provide 'dm-editing)
 ;;; dm-editing.el ends here

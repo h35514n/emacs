@@ -7,9 +7,8 @@
 (require 'subr-x)
 
 (declare-function calc-eval "calc")
-(declare-function evil-insert "evil-commands")
-(declare-function evil-insert-state-p "evil-states")
-(declare-function evil-visual-state-p "evil-states")
+(declare-function meow-insert "meow-command" ())
+(declare-function meow-insert-mode-p "meow-core" ())
 
 
 ;;;###autoload
@@ -119,8 +118,8 @@ start of the line instead."
     (activate-mark)))
 
 (defun dm-text--selected-text ()
-  "Return the active visual text, or select and return text around point."
-  (if (evil-visual-state-p)
+  "Return the active selection, or select and return text around point."
+  (if (region-active-p)
       (string-trim (buffer-substring (mark) (point)))
     (dm-text--select-around-point-to-whitespace-or-delimiters)
     (string-trim (buffer-substring (mark) (point)))))
@@ -143,16 +142,16 @@ start of the line instead."
 With DISPLAYMODE-P, use display math delimiters."
   (interactive "P")
   (if (or (dm-text-point-on-empty-line-p)
-          (evil-insert-state-p))
+          (meow-insert-mode-p))
       (if displaymode-p
           (progn
             (insert "\\[\n\n\\]")
             (goto-char (- (point) 3))
             (insert "\t")
-            (evil-insert 1))
+            (meow-insert))
         (insert "\\(  \\)")
         (goto-char (- (point) 3))
-        (evil-insert 1))
+        (meow-insert))
     (let* ((selected-text (dm-text--selected-text))
            (wrapped-text
             (if displaymode-p

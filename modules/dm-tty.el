@@ -33,30 +33,27 @@
   (interactive)
   (insert (shell-command-to-string "pbpaste")))
 
-(use-package general
-  :config
-  (defun dm-bind-tty-keys (&optional frame)
-    "Set up keybindings specific to TTY Emacs."
-    (with-selected-frame (or frame (selected-frame))
-      (general-define-key
-       "M-["   #'previous-buffer
-       "M-]"   #'next-buffer
-       "M-{"   #'tab-bar-switch-to-prev-tab
-       "M-}"   #'tab-bar-switch-to-next-tab
-       "M-C-p" #'execute-extended-command-for-buffer
-       "M-f"   #'avy-goto-char-2
-       "M-g"   #'magit-status
-       "M-k"   #'bury-buffer
-       "M-K"   #'kill-current-buffer
-       "M-n"   #'evil-buffer-new
-       "M-t"   #'tab-new
-       "M-W"   #'tab-close
-       "M-w"   #'dm-delete-window-dwim
-       "C-c y" #'dm-pbcopy
-       "C-c d" #'dm-pbcut
-       "C-c p" #'dm-pbpaste)))
-  ;; Run on new frames, and for the initial frame in non-daemonized Emacs
-  (add-hook 'after-make-frame-functions #'dm-bind-tty-keys))
+(defun dm-bind-tty-keys (&optional frame)
+  "Set up keybindings specific to TTY Emacs."
+  (with-selected-frame (or frame (selected-frame))
+    (keymap-global-set "M-["   #'previous-buffer)
+    (keymap-global-set "M-]"   #'next-buffer)
+    (keymap-global-set "M-{"   #'tab-bar-switch-to-prev-tab)
+    (keymap-global-set "M-}"   #'tab-bar-switch-to-next-tab)
+    (keymap-global-set "C-M-p" #'execute-extended-command-for-buffer)
+    (keymap-global-set "M-f"   #'avy-goto-char-2)
+    (keymap-global-set "M-g"   #'magit-status)
+    (keymap-global-set "M-k"   #'bury-buffer)
+    (keymap-global-set "M-K"   #'kill-current-buffer)
+    (keymap-global-set "M-n"   #'dm-new-buffer)
+    (keymap-global-set "M-t"   #'tab-new)
+    (keymap-global-set "M-W"   #'tab-close)
+    (keymap-global-set "M-w"   #'dm-delete-window-dwim)
+    (keymap-global-set "C-c y" #'dm-pbcopy)
+    (keymap-global-set "C-c d" #'dm-pbcut)
+    (keymap-global-set "C-c p" #'dm-pbpaste)))
+;; Run on new frames, and for the initial frame in non-daemonized Emacs
+(add-hook 'after-make-frame-functions #'dm-bind-tty-keys)
 
 ;; TODO: idle delay may need tweaking in tty
 (use-package which-key

@@ -2,8 +2,7 @@
 
 ;;; Commentary:
 
-;; Org setup is kept together because its first-load cost is meaningful and the
-;; Evil integration depends on Org's own load lifecycle.
+;; Org setup is kept together because its first-load cost is meaningful.
 
 ;;; Code:
 
@@ -39,17 +38,6 @@
   ;; package-specific settings
   (org-latex-packages-alist '(("" "tikz") ("" "amssymb") ("" "amssymb")))
   (ob-mermaid-cli-path "mmdc"))
-
-(use-package evil-org
-  ;; Evil keybindings for org: heading navigation, table editing, agenda.
-  :after (evil org)
-  :hook (org-mode . evil-org-mode)
-  :config
-  ;; Agenda bindings only matter once `org-agenda' loads, which happens on
-  ;; first `M-x org-agenda'. Don't pull in evil-org-agenda before then.
-  (with-eval-after-load 'org-agenda
-    (require 'evil-org-agenda)
-    (evil-org-agenda-set-keys)))
 
 ;; ox-hugo exports hugo blog content from org
 (use-package ox-hugo

@@ -17,7 +17,7 @@
 (require 'dm-session)
 (require 'dm-core)
 (require 'dm-ui)
-(require 'dm-evil)
+(require 'dm-meow)
 (require 'dm-window)
 (require 'dm-completion)
 (require 'dm-editing)

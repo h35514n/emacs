@@ -98,10 +98,7 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
 (run-with-idle-timer 3 nil (lambda () (require 'magit)))
 
 (use-package git-timemachine
-  :commands git-timemachine
-  :config
-  (evil-make-overriding-map git-timemachine-mode-map 'normal)
-  (add-hook 'git-timemachine-mode-hook #'evil-normalize-keymaps))
+  :commands git-timemachine)
 
 (use-package posframe
   :defer t)
