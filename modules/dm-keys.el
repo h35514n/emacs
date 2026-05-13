@@ -195,8 +195,8 @@
              "s-t"   #'tab-new
              "s-W"   #'tab-close
              "s-w"   #'dm-delete-window-dwim
-             "s-'"   #'eat-other-window ;; TODO: prefix dwim wrapper?
-             "s-\""  #'eat-project-other-window)))))
+             "s-'"   #'eat
+             "s-\""  #'eat-project)))))
   ;; Run on new frames, and for the initial frame in non-daemonized Emacs
   (add-hook 'after-make-frame-functions #'dm-bind-gui-keys)
   (add-hook 'window-setup-hook #'dm-bind-gui-keys))
