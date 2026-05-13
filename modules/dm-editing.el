@@ -32,9 +32,16 @@
 
 (use-package visual-fill-column
   :hook ((markdown-mode . visual-line-mode)
-         (markdown-mode . visual-fill-column-mode))
+         (prog-mode . visual-fill-column-mode))
   :custom
   (visual-fill-column-width 80))
+
+(use-package olivetti
+  :hook ((org-mode text-mode) . olivetti-mode)
+  :custom
+  (olivetti-style 'fancy)
+  (olivetti-body-width 92)
+  (olivetti-minimum-body-width 72))
 
 (use-package markdown-mode
   :hook ((markdown-mode . outline-minor-mode)
@@ -204,14 +211,6 @@
   :straight nil
   :hook ((emacs-lisp-mode . hs-minor-mode)
          (lisp-interaction-mode . hs-minor-mode)))
-
-(use-package olivetti
-  :hook ((org-mode markdown-mode text-mode) . olivetti-mode)
-  :custom
-  (olivetti-body-width 92)
-  (olivetti-minimum-body-width 72)
-  :config
-  (setq-default olivetti-style 'fancy))
 
 (provide 'dm-editing)
 ;;; dm-editing.el ends here
