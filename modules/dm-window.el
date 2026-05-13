@@ -27,6 +27,10 @@ otherwise kill Emacs."
      ((> (length top-level-frames) 1)  (delete-frame))
      (t                                (save-buffers-kill-emacs)))))
 
+;; ---------------------------
+;; Window Resizing
+;; ---------------------------
+
 (defvar dm-window-resize-step 5
   "Number of rows or columns to resize by in the window hydra.")
 
@@ -64,6 +68,22 @@ Resize window: [_h_] narrower [_j_] shorter [_k_] taller [_l_] wider [_=_] balan
     ("l" dm-window-enlarge-horizontally)
     ("=" balance-windows)
     ("q" nil :color blue)))
+
+;; ---------------------------
+;; Window Selection
+;; ---------------------------
+
+(use-package ace-window
+  :bind (("M-o" . ace-window))
+  :defer 0.3
+  :custom
+  (aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l ?u ?i ?o))
+  (aw-scope 'frame)
+  (aw-background nil)
+  :config
+  (set-face-attribute 'aw-leading-char-face nil
+                      :height 3.0
+                      :weight 'bold))
 
 (provide 'dm-window)
 ;;; dm-window.el ends here
