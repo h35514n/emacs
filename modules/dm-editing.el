@@ -48,30 +48,30 @@
   (tabspaces-remove-to-default t)
   (tabspaces-include-buffers '("*scratch*")))
 
-;; Filter `consult-buffer' to show only current-workspace buffers. The nested
-;; `with-eval-after-load' keeps Consult/Tabspaces internals off the boot path.
-(with-eval-after-load 'consult
-  (with-eval-after-load 'tabspaces
-    (consult-customize consult-source-buffer :hidden t :default nil)
-    ;; Hide file-loading sources from default consult-buffer view; still
-    ;; accessible by narrowing (r recent, p project, m bookmarks).
-    (consult-customize
-     consult-source-project-recent-file
-     consult-source-project-recent-file-hidden
-     :hidden t)
-    (defvar consult-source-workspace
-      (list :name     "Workspace buffers"
-            :narrow   ?w
-            :history  'buffer-name-history
-            :category 'buffer
-            :state    #'consult--buffer-state
-            :default  t
-            :items    (lambda ()
-                        (consult--buffer-query
-                         :predicate #'tabspaces--local-buffer-p
-                         :sort 'visibility
-                         :as #'buffer-name))))
-    (add-to-list 'consult-buffer-sources 'consult-source-workspace)))
+;; ;; Filter `consult-buffer' to show only current-workspace buffers. The nested
+;; ;; `with-eval-after-load' keeps Consult/Tabspaces internals off the boot path.
+;; (with-eval-after-load 'consult
+;;   (with-eval-after-load 'tabspaces
+;;     (consult-customize consult-source-buffer :hidden t :default nil)
+;;     ;; Hide file-loading sources from default consult-buffer view; still
+;;     ;; accessible by narrowing (r recent, p project, m bookmarks).
+;;     ;; (consult-customize
+;;     ;;  consult-source-project-recent-file
+;;     ;;  consult-source-project-recent-file-hidden
+;;     ;;  :hidden t)
+;;     (defvar consult-source-workspace
+;;       (list :name     "Workspace buffers"
+;;             :narrow   ?w
+;;             :history  'buffer-name-history
+;;             :category 'buffer
+;;             :state    #'consult--buffer-state
+;;             :default  t
+;;             :items    (lambda ()
+;;                         (consult--buffer-query
+;;                          :predicate #'tabspaces--local-buffer-p
+;;                          :sort 'visibility
+;;                          :as #'buffer-name))))
+;;     (add-to-list 'consult-buffer-sources 'consult-source-workspace)))
 
 (use-package dired
   :straight nil
