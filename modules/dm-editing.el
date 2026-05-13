@@ -184,12 +184,31 @@
 
 ;;;###autoload
 (defun dm-tab-dwim ()
-  "Smart TAB: advance Tempel field, expand snippet, or indent."
+  "Smart TAB: advance Tempel field, expand snippet, indent, or insert tab."
   (interactive)
   (cond
-   ((bound-and-true-p tempel--active) (tempel-next 1))
-   ((tempel-expand t))
-   (t (indent-for-tab-command))))
+   ((bound-and-true-p tempel--active)
+    (tempel-next 1))
+   ;; Blank or whitespace-only line: don't try Tempel.
+   ((save-excursion
+      (back-to-indentation)
+      (eolp))
+    (dm--indent-or-insert-tab))
+   ;; After a plausible snippet trigger: try Tempel, then indent.
+   ((looking-back "\\(?:\\sw\\|\\s_\\)+" (line-beginning-position))
+    (or (tempel-expand t)
+        (dm--indent-or-insert-tab)))
+   (t
+    (dm--indent-or-insert-tab))))
+
+(defun dm--indent-or-insert-tab ()
+  "Indent the current line, or insert a tab if indentation does nothing."
+  (let ((point-before (point))
+        (column-before (current-column)))
+    (indent-for-tab-command)
+    (when (and (= point-before (point))
+               (= column-before (current-column)))
+      (insert-tab))))
 
 (use-package tempel
   :after evil

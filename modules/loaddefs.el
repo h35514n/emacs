@@ -25,8 +25,8 @@ directory hierarchy.
 ;;; Generated autoloads from dm-editing.el
 
 (autoload 'dm-tab-dwim "dm-editing"
-"Smart TAB: advance Tempel field, expand snippet, or indent." t)
-(register-definition-prefixes "dm-editing" '("dm-text-"))
+"Smart TAB: advance Tempel field, expand snippet, indent, or insert tab." t)
+(register-definition-prefixes "dm-editing" '("dm-"))
 
 
 ;;; Generated autoloads from dm-env.el
