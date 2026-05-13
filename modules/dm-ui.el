@@ -104,7 +104,6 @@ visual wrapping more closely matches the intended `fill-column'."
   (load-theme 'doom-one t))
 
 (use-package mood-line
-  :defer 0.1
   :config
   (setq mood-line-glyph-alist mood-line-glyphs-fira-code)
   (setq mood-line-segment-modal-evil-state-alist
