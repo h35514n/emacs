@@ -48,16 +48,15 @@
 
 (use-package evil-commentary
   :after evil
-  :config
-  (evil-commentary-mode))
+  :config (evil-commentary-mode))
 
 (use-package evil-numbers
+  :after evil
   :commands (evil-numbers/dec-at-pt evil-numbers/inc-at-pt)
   :init
-  (with-eval-after-load 'evil
-    (evil-define-key 'normal 'global
-      (kbd "g-") #'evil-numbers/dec-at-pt
-      (kbd "g=") #'evil-numbers/inc-at-pt)))
+  (evil-define-key 'normal 'global
+    (kbd "g-") #'evil-numbers/dec-at-pt
+    (kbd "g=") #'evil-numbers/inc-at-pt))
 
 (use-package evil-surround
   :after evil
