@@ -313,6 +313,7 @@ If already open, reload it.
 ;;; Generated autoloads from dm-org.el
 
 (register-definition-prefixes "dm-org" '("dm-org-"))
+
 
 ;;; End of scraped data
 
