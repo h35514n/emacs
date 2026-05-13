@@ -18,7 +18,7 @@
 
   (leader!
     ;; Top-level
-    "SPC" '(consult-buffer          :which-key "buffers")
+    "SPC" '(consult-buffer          :which-key "consult")
     "*"   '(dm-search-for-this-dwim :which-key "search this")
 
     ;; Agent (claude-code-ide / codex-ide, toggled at runtime via SPC a A)
@@ -76,6 +76,12 @@
     "g t" '(git-timemachine             :which-key "time machine")
     "g n" '(diff-hl-show-hunk-next      :which-key "next hunk")
     "g p" '(diff-hl-show-hunk-previous  :which-key "prev hunk")
+
+    ;; Bookmarks
+    "m"     '(:ignore t       :which-key "bookmarks")
+    "m m"   '(bookmark-jump   :which-key "find")
+    "m d"   '(bookmark-delete :which-key "delete")
+    "m RET" '(bookmark-set    :which-key "set")
 
     ;; Org
     "o"   '(:ignore t     :which-key "org")
