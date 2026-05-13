@@ -64,9 +64,9 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
 (use-package magit
   :commands (magit-status magit-blame)
   :init
-  (setq magit-auto-revert-mode nil
-        magit-revision-insert-related-refs nil
-        magit-save-repository-buffers nil
+  (setq magit-auto-revert-mode t
+        magit-revision-insert-related-refs t
+        magit-save-repository-buffers 'dontask
         magit-git-executable (or (executable-find "git") "git"))
   :custom
   (magit-display-buffer-function #'magit-display-buffer-fullframe-status-v1)
@@ -74,18 +74,18 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
   (magit-commit-show-diff t)
   :config
   ;; Remove sections to speed up load.
-  (remove-hook 'magit-status-sections-hook #'magit-insert-am-sequence)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-bisect-log)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-bisect-output)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-bisect-rest)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-merge-log)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-rebase-sequence)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-sequencer-sequence)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-stashes)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-unpulled-from-pushremote)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-unpulled-from-upstream)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-unpushed-to-pushremote)
-  (remove-hook 'magit-status-sections-hook #'magit-insert-unpushed-to-upstream-or-recent)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-am-sequence)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-bisect-log)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-bisect-output)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-bisect-rest)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-merge-log)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-rebase-sequence)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-sequencer-sequence)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-stashes)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-unpulled-from-pushremote)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-unpulled-from-upstream)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-unpushed-to-pushremote)
+  ;; (remove-hook 'magit-status-sections-hook #'magit-insert-unpushed-to-upstream-or-recent)
   (with-eval-after-load 'git-commit
     (add-hook 'git-commit-mode-hook #'dm-git-commit-disable-completion 90)
     (add-hook 'git-commit-setup-hook #'dm-git-commit-insert-pending-generated-message))
