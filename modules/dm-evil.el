@@ -76,7 +76,7 @@
   (avy-style 'at-full))
 
 (use-package evil-lion
-  ;; Defer until evil is settled; evil-lion-mode just registers keybindings.
+  :after evil
   :defer 0.5
   :init
   (setq evil-lion-left-align-key (kbd "g l"))
