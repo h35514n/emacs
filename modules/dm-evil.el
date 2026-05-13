@@ -32,12 +32,39 @@
   :after evil
   :defer 0.3
   :init
+  (setq evil-collection-mode-list
+        '(
+          consult
+          corfu
+          diff-hl
+          diff-mode
+          dired
+          eat
+          ediff
+          eglot
+          elisp-mode
+          embark
+          flymake
+          git-timemachine
+          helpful
+          hideshow
+          ibuffer
+          imenu
+          magit
+          magit-section
+          markdown-mode
+          org
+          vertico
+          which-key
+          xwidget
+          )
+          ;; -- rejected --
+          ;; minibuffer
+        )
     (setq evil-collection-calendar-want-org-bindings  nil)
-    (setq evil-collection-outline-bind-tab-p            t)
-    (setq evil-collection-setup-debugger-keys           t)
-    (setq evil-collection-setup-minibuffer              t)
-    (setq evil-collection-term-sync-state-and-mode-p    t)
-    (setq evil-collection-want-find-usages-bindings     t)
+    (setq evil-collection-setup-debugger-keys         nil)
+    (setq evil-collection-setup-minibuffer            nil) ;; disabled: induces hitting ESC in normal mode and accidentally quitting
+    (setq evil-collection-want-find-usages-bindings   nil)
     (setq evil-collection-want-unimpaired-p           nil)
     (setq evil-collection-state-denylist              nil)
     (setq evil-collection-state-passlist              nil)
