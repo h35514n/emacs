@@ -75,7 +75,7 @@
 ;; particular reads/writes its history file, so it stays off the boot path.
 (defun dm-core-global-minor-modes ()
   (editorconfig-mode 1)
-  (global-auto-revert-mode -1) ;; disabled for safety
+  (global-auto-revert-mode 1)
   (global-eldoc-mode -1) ;; disabled because noisy
   (dm-quietly-recentf-mode)
   (savehist-mode 1))
