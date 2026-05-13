@@ -5,36 +5,8 @@
 ;; Buffer-local editing ergonomics: local Evil bindings, scratch/workspace
 ;; behavior, formatting, completion-at-point, snippets, web helpers, and simple
 ;; folding fallback. Language-server and tree-sitter setup live elsewhere.
-;; TODO: Move `dm-text-*' to with dm-text
 
 ;;; Code:
-
-(defun dm-text-formatting-keybindings ()
-  "Bind Super text-formatting commands in the current buffer."
-  (dolist (state '(normal visual insert))
-    (evil-local-set-key state (kbd "s-b") #'dm-text-make-bold)
-    (evil-local-set-key state (kbd "s-i") #'dm-text-make-italic)
-    (evil-local-set-key state (kbd "s-u") #'dm-text-make-underlined)
-    (evil-local-set-key state (kbd "s-X") #'dm-text-make-strikethrough)))
-
-(dolist (hook '(LaTeX-mode-hook
-                latex-mode-hook
-                markdown-mode-hook
-                gfm-mode-hook
-                org-mode-hook))
-  (add-hook hook #'dm-text-formatting-keybindings))
-
-(defun dm-text-latex-keybindings ()
-  "Bind latex-formatting commands in the current buffer."
-  (dolist (state '(visual))
-    (evil-local-set-key state (kbd "C-b") #'dm-text-latex-wrap-as-boxed)
-    (evil-local-set-key state (kbd "C-f") #'dm-text-latex-wrap-as-frac)
-    (evil-local-set-key state (kbd "C-e") #'dm-text-latex-evaluate-selection)
-    (evil-local-set-key state (kbd "C-m") #'dm-text-latex-wrap-as-math)
-    (evil-local-set-key state (kbd "C-s") #'dm-text-latex-wrap-as-si)))
-
-(dolist (hook '(LaTeX-mode-hook latex-mode-hook))
-  (add-hook hook #'dm-text-latex-keybindings))
 
 (use-package persistent-scratch
   :ensure t
@@ -47,31 +19,6 @@
   (tabspaces-default-tab "main")
   (tabspaces-remove-to-default t)
   (tabspaces-include-buffers '("*scratch*")))
-
-;; ;; Filter `consult-buffer' to show only current-workspace buffers. The nested
-;; ;; `with-eval-after-load' keeps Consult/Tabspaces internals off the boot path.
-;; (with-eval-after-load 'consult
-;;   (with-eval-after-load 'tabspaces
-;;     (consult-customize consult-source-buffer :hidden t :default nil)
-;;     ;; Hide file-loading sources from default consult-buffer view; still
-;;     ;; accessible by narrowing (r recent, p project, m bookmarks).
-;;     ;; (consult-customize
-;;     ;;  consult-source-project-recent-file
-;;     ;;  consult-source-project-recent-file-hidden
-;;     ;;  :hidden t)
-;;     (defvar consult-source-workspace
-;;       (list :name     "Workspace buffers"
-;;             :narrow   ?w
-;;             :history  'buffer-name-history
-;;             :category 'buffer
-;;             :state    #'consult--buffer-state
-;;             :default  t
-;;             :items    (lambda ()
-;;                         (consult--buffer-query
-;;                          :predicate #'tabspaces--local-buffer-p
-;;                          :sort 'visibility
-;;                          :as #'buffer-name))))
-;;     (add-to-list 'consult-buffer-sources 'consult-source-workspace)))
 
 (use-package dired
   :straight nil
@@ -230,7 +177,6 @@
   (add-hook 'conf-mode-hook #'dm-tab-dwim-setup)
   (add-hook 'prog-mode-hook #'dm-tab-dwim-setup)
   (add-hook 'text-mode-hook #'dm-tab-dwim-setup))
-
 
 (use-package tempel-collection
   :after tempel)
