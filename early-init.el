@@ -71,7 +71,8 @@
 (defconst dm-file-transient-values   "~/.dotfiles/state/emacs/transient/values.el")
 
 ;; Save compiled lisp to xdg state dir
-(when (fboundp 'startup-redirect-eln-cache)
+(when (and (fboundp 'startup-redirect-eln-cache)
+           (boundp 'native-comp-eln-load-path))
   (startup-redirect-eln-cache dm-dir-eln-cache))
 
 (defconst dm-modules-dir (expand-file-name "modules/" dm-config-home))
