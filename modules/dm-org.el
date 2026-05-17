@@ -47,6 +47,9 @@
     (require 'evil-org-agenda)
     (evil-org-agenda-set-keys)))
 
+;;; ————————————————————————————
+;;; ox-hugo
+;;; ————————————————————————————
 ;; ox-hugo exports hugo blog content from org
 (use-package ox-hugo
   :straight t
@@ -69,6 +72,83 @@
             (when (org-element-property :EXPORT_DATE hl)
               (goto-char (org-element-property :begin hl))
               (org-hugo-export-wim-to-md t))))))))
+
+
+;;; ————————————————————————————
+;;; Org agenda custom commands
+;;; ————————————————————————————
+
+(with-eval-after-load 'org-agenda
+  (add-to-list
+   'org-agenda-custom-commands
+   '("W" "Completed tasks in past week"
+     ((agenda ""
+              ((org-agenda-span 7)
+               (org-agenda-start-day "-7d")
+               (org-agenda-log-mode-items '(closed clock state))
+               (org-agenda-skip-function
+                '(org-agenda-skip-entry-if 'notregexp "CLOSED:"))))))))
+
+;;; ————————————————————————————
+;;; Org agenda cycling
+;;; ————————————————————————————
+
+(defvar dm-org--cycle-agenda--current-file nil
+  "Truename of the last agenda file visited by `dm-org--cycle-agenda-files'.")
+
+(defun dm-org--cycle-agenda--file-truenames ()
+  "Return a cons of (ORIGINALS . TRUENAMES) for `org-agenda-files' (existing only)."
+  (let* ((orig (or (org-agenda-files t)
+                   (user-error "No agenda files")))
+         (tns  (mapcar #'file-truename orig)))
+    (cons orig tns)))
+
+(defun dm-org--cycle-agenda-files (&optional arg)
+  "Cycle through `org-agenda-files'. Positive ARG moves forward, negative moves backward.
+
+If called from outside an agenda file, jump to `todo.org` if present in the list
+(case-insensitive basename match), otherwise the first agenda file. Do not
+advance past that file on this initial jump. From within an agenda file, cycle
+as usual by one step in the chosen direction."
+  (interactive "p")
+  (pcase-let* ((`(,orig . ,tns) (dm-org--cycle-agenda--file-truenames))
+               (len (length tns))
+               (step (if (and arg (< arg 0)) -1 1))
+               (cur  (and buffer-file-name (file-truename buffer-file-name)))
+               (in-agenda? (and cur (member cur tns)))
+               ;; Find index of a basename exactly equal to "todo.org" (case-insensitive)
+               (todo-idx (cl-position "todo.org" orig
+                                      :test (lambda (needle f)
+                                              (string= needle (downcase (file-name-nondirectory f))))))
+               (start-idx
+                (cond
+                 (in-agenda?
+                  (cl-position cur tns :test #'string=))
+                 ((integerp todo-idx)
+                  todo-idx)
+                 (t 0)))  ;; first file
+               ;; If we're outside an agenda file, don't offset; otherwise do the ±1 step
+               (next-idx (if in-agenda?
+                             (mod (+ start-idx step) len)
+                           start-idx))
+               (target    (nth next-idx orig))
+               (target-tn (nth next-idx tns)))
+    (find-file target)
+    (setq dm-org--cycle-agenda--current-file target-tn)
+    (when (buffer-base-buffer)
+      (pop-to-buffer-same-window (buffer-base-buffer)))))
+
+;;;###autoload
+(defun dm-org-cycle-agenda-next ()
+  "Cycle forward through `org-agenda-files'."
+  (interactive)
+  (dm-org--cycle-agenda-files +1))
+
+;;;###autoload
+(defun dm-org-cycle-agenda-prev ()
+  "Cycle backward through `org-agenda-files'."
+  (interactive)
+  (dm-org--cycle-agenda-files -1))
 
 (provide 'dm-org)
 ;;; dm-org.el ends here

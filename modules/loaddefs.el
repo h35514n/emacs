@@ -312,6 +312,10 @@ If already open, reload it.
 
 ;;; Generated autoloads from dm-org.el
 
+(autoload 'dm-org-cycle-agenda-next "dm-org"
+"Cycle forward through `org-agenda-files'." t)
+(autoload 'dm-org-cycle-agenda-prev "dm-org"
+"Cycle backward through `org-agenda-files'." t)
 (register-definition-prefixes "dm-org" '("dm-org-"))
 
 

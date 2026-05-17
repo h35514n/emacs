@@ -85,9 +85,11 @@
     "m RET" '(bookmark-set    :which-key "set")
 
     ;; Org
-    "o"   '(:ignore t     :which-key "org")
-    "o a" '(org-agenda    :which-key "agenda")
-    "o c" '(org-capture   :which-key "capture")
+    "o"   '(:ignore t              :which-key "org")
+    "o a" '(org-agenda             :which-key "agenda")
+    "o c" '(org-capture            :which-key "capture")
+    "o f" '(consult-org-agenda     :which-key "find")
+    "o A" '(org-cycle-agenda-files :which-key "cycle agenda files")
 
     ;; Toggle
     "t"   '(:ignore t          :which-key "toggle")
@@ -186,6 +188,8 @@
              "s-R"   #'dm-restart-emacs-and-restore
              "s-P"   #'execute-extended-command
              "s-C-p" #'execute-extended-command-for-buffer
+             "s-C-[" #'dm-org-cycle-agenda-prev
+             "s-C-]" #'dm-org-cycle-agenda-next
              "s-f"   #'avy-goto-char-2
              "s-g"   #'magit-status
              "s-k"   #'bury-buffer
