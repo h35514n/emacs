@@ -17,6 +17,15 @@
     (and path
          (string-match-p dm-git-commit-filename-regexp path))))
 
+(defun dm-git-commit-show-buffer-only ()
+  "Show only the current Git commit message buffer in its frame.
+This keeps restored buffers such as `*scratch*' out of the Git editor frame
+without killing them or changing normal session restore behavior."
+  (when (dm-git-commit-file-p)
+    (when-let* ((window (get-buffer-window (current-buffer) t)))
+      (select-window window)
+      (delete-other-windows window))))
+
 (defun dm-skip-treesit-auto-for-git-commit-file-a (fn &rest args)
   "Skip `treesit-auto' remap setup for transient Git message buffers.
 FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
@@ -88,6 +97,7 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
   ;; (remove-hook 'magit-status-sections-hook #'magit-insert-unpushed-to-upstream-or-recent)
   (with-eval-after-load 'git-commit
     (add-hook 'git-commit-mode-hook #'dm-git-commit-disable-completion 90)
+    (add-hook 'git-commit-mode-hook #'dm-git-commit-show-buffer-only 95)
     (add-hook 'git-commit-setup-hook #'dm-git-commit-insert-pending-generated-message))
   (with-eval-after-load 'magit-commit
     (oset (get 'magit-commit 'transient--prefix) value nil)
