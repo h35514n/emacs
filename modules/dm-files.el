@@ -46,12 +46,6 @@ Otherwise it runs:
   (when-let* ((extension (file-name-extension file)))
     (alist-get (downcase extension) dm-file-open-apps nil nil #'string=)))
 
-(defun dm-buffer-file-name ()
-  "Return the current buffer's file name, or nil."
-  (or buffer-file-name
-      (and (derived-mode-p 'dired-mode)
-           default-directory)))
-
 (defun dm-current-file-or-error ()
   "Return the current buffer's file name, or signal a user error."
   (or buffer-file-name
@@ -69,7 +63,7 @@ Otherwise it runs:
    (t
     (user-error "Current buffer has no associated directory"))))
 
-(defun dm-project-root ()
+(defun dm-files-project-root ()
   "Return the current project root, or nil without prompting."
   (when-let* ((project (project-current nil)))
     (expand-file-name (project-root project))))
@@ -89,7 +83,7 @@ Otherwise it runs:
   "Return PATH relative to the current project root, or nil.
 
 Returns nil if PATH is not inside the current project."
-  (when-let* ((root (dm-project-root)))
+  (when-let* ((root (dm-files-project-root)))
     (let ((path-truename (file-truename path))
           (root-truename (file-name-as-directory (file-truename root))))
       (when (string-prefix-p root-truename path-truename)
@@ -163,6 +157,10 @@ call repeatedly -- an in-flight refresh is cancelled before a new one starts."
                          (split-string (buffer-string) "\n" t))))
                (kill-buffer (process-buffer proc))))))))
 
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (run-with-timer 1 nil #'dm-find-in-home--refresh-cache)))
+
 ;;;###autoload
 (defun dm-find-in-home ()
   "Two-stage `fd' selection for directory and file within $HOME.
@@ -197,7 +195,7 @@ back to a synchronous fd run on the first invocation after startup."
 This never prompts for a project."
   (interactive)
   (dm-open-path
-   (or (dm-project-root)
+   (or (dm-files-project-root)
        (dm-current-directory-or-error))))
 
 ;;;###autoload

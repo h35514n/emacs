@@ -61,8 +61,7 @@ visual wrapping more closely matches the intended `fill-column'."
     "Unfill text in motion/selection."
     :move-point nil
     (let ((fill-column most-positive-fixnum))
-      (fill-region beg end)))
-  (define-key evil-normal-state-map "gQ" #'evil-unfill))
+      (fill-region beg end))))
 
 (defun dm-frame-title-project-or-buffer ()
   "Show project name in title bar, falling back to buffer name."

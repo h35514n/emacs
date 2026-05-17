@@ -12,6 +12,21 @@
 (register-definition-prefixes "dm-ai" '("dm-"))
 
 
+;;; Generated autoloads from dm-codex-ide.el
+
+(autoload 'codex-ide--buffer-name "dm-codex-ide"
+"
+
+(fn DIR)")
+(autoload 'codex-ide "dm-codex-ide"
+"Start or switch to a Codex session for the current project." t)
+(autoload 'codex-ide-toggle "dm-codex-ide"
+"Toggle visibility of the Codex window for the current project." t)
+(autoload 'codex-ide-stop "dm-codex-ide"
+"Kill the Codex session for the current project." t)
+(register-definition-prefixes "dm-codex-ide" '("codex-ide-"))
+
+
 ;;; Generated autoloads from dm-completion.el
 
 (autoload 'dm-search-for-this-dwim "dm-completion"
@@ -22,16 +37,9 @@ directory hierarchy.
 (fn &optional BEG END)" t)
 
 
-;;; Generated autoloads from dm-editing.el
+;;; Generated autoloads from dm-core.el
 
-(autoload 'dm-tab-dwim "dm-editing"
-"Smart TAB: advance Tempel field, expand snippet, indent, or insert tab." t)
-(register-definition-prefixes "dm-editing" '("dm-"))
-
-
-;;; Generated autoloads from dm-env.el
-
-(register-definition-prefixes "dm-env" '("dm-designated-tty-daemon-p"))
+(register-definition-prefixes "dm-core" '("dm-core-global-minor-modes"))
 
 
 ;;; Generated autoloads from dm-evil-text.el
@@ -95,6 +103,11 @@ DIRECTORY defaults to the user's home directory.
 (register-definition-prefixes "dm-files" '("dm-"))
 
 
+;;; Generated autoloads from dm-format.el
+
+(register-definition-prefixes "dm-format" '("dm-format-"))
+
+
 ;;; Generated autoloads from dm-langs.el
 
 (autoload 'dm-treesit-install-all-languages "dm-langs"
@@ -145,6 +158,15 @@ process buffers below the selected window.
 (register-definition-prefixes "dm-magit" '("dm-"))
 
 
+;;; Generated autoloads from dm-org.el
+
+(autoload 'dm-org-cycle-agenda-next "dm-org"
+"Cycle forward through `org-agenda-files'." t)
+(autoload 'dm-org-cycle-agenda-prev "dm-org"
+"Cycle backward through `org-agenda-files'." t)
+(register-definition-prefixes "dm-org" '("dm-org-"))
+
+
 ;;; Generated autoloads from dm-popup-quit.el
 
 (autoload 'dm-quit-or-close-popup "dm-popup-quit"
@@ -186,12 +208,11 @@ in `dm-quit-or-close-popup-buffer-names' or starts with one of
 (register-definition-prefixes "dm-repl" '("dm-"))
 
 
-;;; Generated autoloads from dm-session.el
+;;; Generated autoloads from dm-snippets.el
 
-(autoload 'dm-restart-emacs-no-restore "dm-session"
-"Restart Emacs without restoring the desktop." t)
-(autoload 'dm-restart-emacs-and-restore "dm-session"
-"Save desktop and restart Emacs." t)
+(autoload 'dm-tab-dwim "dm-snippets"
+"Smart TAB: advance Tempel field, expand snippet, indent, or insert tab." t)
+(register-definition-prefixes "dm-snippets" '("dm--indent-or-insert-tab"))
 
 
 ;;; Generated autoloads from dm-test-toggle.el
@@ -261,6 +282,16 @@ With DISPLAYMODE-P, use display math delimiters.
 (register-definition-prefixes "dm-ui" '("dm-"))
 
 
+;;; Generated autoloads from dm-util.el
+
+(autoload 'dm-util-open-pdf-at-right "dm-util"
+"Open the pdf FILENAME in a new buffer to the right of the current buffer.
+If already open, reload it.
+
+(fn FILENAME)" t)
+(register-definition-prefixes "dm-util" '("dm-util-"))
+
+
 ;;; Generated autoloads from dm-vcs.el
 
 (register-definition-prefixes "dm-vcs" '("dm-"))
@@ -273,51 +304,6 @@ With DISPLAYMODE-P, use display math delimiters.
 Close tab if sole window in tab, close frame if multiple frames exist,
 otherwise kill Emacs." t)
 (register-definition-prefixes "dm-window" '("dm-window-"))
-
-
-;;; Generated autoloads from dm-xdg.el
-
-(register-definition-prefixes "dm-xdg" '("dm-xdg-"))
-
-
-;;; Generated autoloads from dm-core.el
-
-(register-definition-prefixes "dm-core" '("dm-core-global-minor-modes"))
-
-
-;;; Generated autoloads from codex-ide.el
-
-(autoload 'codex-ide--buffer-name "codex-ide"
-"
-
-(fn DIR)")
-(autoload 'codex-ide "codex-ide"
-"Start or switch to a Codex session for the current project." t)
-(autoload 'codex-ide-toggle "codex-ide"
-"Toggle visibility of the Codex window for the current project." t)
-(autoload 'codex-ide-stop "codex-ide"
-"Kill the Codex session for the current project." t)
-(register-definition-prefixes "codex-ide" '("codex-ide-"))
-
-
-;;; Generated autoloads from dm-util.el
-
-(autoload 'dm-util-open-pdf-at-right "dm-util"
-"Open the pdf FILENAME in a new buffer to the right of the current buffer.
-If already open, reload it.
-
-(fn FILENAME)" t)
-(register-definition-prefixes "dm-util" '("dm-util-"))
-
-
-;;; Generated autoloads from dm-org.el
-
-(autoload 'dm-org-cycle-agenda-next "dm-org"
-"Cycle forward through `org-agenda-files'." t)
-(autoload 'dm-org-cycle-agenda-prev "dm-org"
-"Cycle backward through `org-agenda-files'." t)
-(register-definition-prefixes "dm-org" '("dm-org-"))
-
 
 ;;; End of scraped data
 

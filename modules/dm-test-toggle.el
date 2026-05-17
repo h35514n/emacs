@@ -20,22 +20,14 @@
   (let ((project (project-current t)))
     (project-files project)))
 
-(defun dm-project-root ()
+(defun dm-test-toggle-project-root ()
   "Return current project root."
   (project-root (project-current t)))
-
-(defun dm-file-in-dir-p (file dir)
-  "Return non-nil if FILE is under DIR."
-  (string-prefix-p dir file))
 
 (defun dm-test-toggle-same-file-p (a b root)
   "Return non-nil if A and B name the same file under ROOT."
   (string= (file-truename (expand-file-name a root))
            (file-truename (expand-file-name b root))))
-
-(defun dm-replace-prefix (s old new)
-  "Replace OLD prefix in S with NEW."
-  (concat new (string-remove-prefix old s)))
 
 (defun dm-test-file-p (relfile)
   "Return non-nil if RELFILE looks like a test file."
@@ -158,7 +150,7 @@
   (interactive)
   (unless buffer-file-name
     (user-error "Current buffer is not visiting a file"))
-  (let* ((root (dm-project-root))
+  (let* ((root (dm-test-toggle-project-root))
          (relfile (file-relative-name buffer-file-name root))
          (files (dm-project-files))
          (candidates (dm-related-file-candidates relfile files root)))

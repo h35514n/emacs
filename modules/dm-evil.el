@@ -2,8 +2,9 @@
 
 ;;; Commentary:
 
-;; Vim-style editing packages and the small bits of glue that need to happen
-;; as Evil comes online. Mode-local bindings live with the mode modules.
+;; Vim-style editing packages and the key policy that needs Evil state maps.
+;; Package-local maps still live with their package modules when the binding is
+;; part of that package's behavior.
 
 ;;; Code:
 
@@ -21,10 +22,44 @@
   :config
   (evil-mode 1)
   (dm-evil-text-setup)
+  (evil-define-command dm-evil-toggle-test-implementation ()
+    "Toggle between implementation and test file."
+    :repeat nil
+    (dm-toggle-test-implementation))
+  (evil-ex-define-cmd "A" #'dm-evil-toggle-test-implementation)
   ;; Let the main readline-style keys fall through to the global map in insert
   ;; state. C-k/C-t/C-y keep their Evil insert-state meanings.
   (dolist (key '("C-a" "C-e" "C-b" "C-f" "C-n" "C-p" "C-d"))
-    (define-key evil-insert-state-map (kbd key) nil)))
+    (define-key evil-insert-state-map (kbd key) nil))
+  ;; Global normal-state vocabulary.
+  (evil-define-key 'normal 'global
+    (kbd "-")   #'dired-jump
+    (kbd "gQ")  #'evil-unfill
+    (kbd "g-")  #'evil-numbers/dec-at-pt
+    (kbd "g=")  #'evil-numbers/inc-at-pt
+    (kbd "[b")  #'evil-prev-buffer
+    (kbd "]b")  #'evil-next-buffer
+    (kbd "[e")  #'flymake-goto-prev-error
+    (kbd "]e")  #'flymake-goto-next-error
+    (kbd "[h")  #'diff-hl-show-hunk-previous
+    (kbd "]h")  #'diff-hl-show-hunk-next
+    (kbd "[t")  #'tab-bar-switch-to-prev-tab
+    (kbd "]t")  #'tab-bar-switch-to-next-tab)
+  (evil-define-key 'normal emacs-lisp-mode-map
+    (kbd "K")   #'helpful-at-point
+    (kbd "g e") #'dm-evil-eval-sexp-dwim)
+  (evil-define-key 'visual emacs-lisp-mode-map
+    (kbd "g e") #'dm-evil-eval-sexp-dwim)
+  (evil-define-key 'normal lisp-interaction-mode-map
+    (kbd "K") #'helpful-at-point)
+  (evil-define-key 'insert 'global
+    (kbd "C-.") #'tempel-insert)
+  (with-eval-after-load 'eglot
+    (evil-define-key 'normal eglot-mode-map
+      (kbd "K") #'eldoc-print-current-symbol-info))
+  (with-eval-after-load 'helpful
+    (evil-define-key 'normal helpful-mode-map
+      (kbd "K") #'helpful-at-point)))
 
 (use-package evil-collection
   ;; Provides sensible evil keybindings for magit, dired, help, ibuffer, etc.
@@ -51,7 +86,6 @@
           ibuffer
           imenu
           magit-repos
-          magit-section
           magit-section
           magit-todos
           (magit magit-submodule)
@@ -82,11 +116,7 @@
 
 (use-package evil-numbers
   :after evil
-  :commands (evil-numbers/dec-at-pt evil-numbers/inc-at-pt)
-  :init
-  (evil-define-key 'normal 'global
-    (kbd "g-") #'evil-numbers/dec-at-pt
-    (kbd "g=") #'evil-numbers/inc-at-pt))
+  :commands (evil-numbers/dec-at-pt evil-numbers/inc-at-pt))
 
 (use-package evil-surround
   :after evil

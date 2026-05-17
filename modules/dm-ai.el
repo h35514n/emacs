@@ -18,8 +18,7 @@
   (message "Active agent: %s" dm-active-agent))
 
 (defun dm-active-agent-window ()
-  "Return the active agent window for the current project, if visible.
-NOTE: speculative."
+  "Return the active agent window for the current project, if visible."
   (pcase dm-active-agent
     ('claude
      (when-let* ((buf (get-buffer (claude-code-ide--get-buffer-name))))
@@ -28,12 +27,6 @@ NOTE: speculative."
      (when-let* ((dir (dm-util-working-dir))
                  (buf (get-buffer (codex-ide--buffer-name dir))))
        (get-buffer-window buf t)))))
-
-(defun dm-focus-active-agent-window ()
-  "Move focus to the active agent window when it is visible.
-NOTE: speculative."
-  (when-let* ((win (dm-active-agent-window)))
-    (select-window win)))
 
 (defun dm-agent-open ()
   "Show the active AI agent, or dismiss its window when already visible."

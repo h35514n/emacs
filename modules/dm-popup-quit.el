@@ -6,18 +6,29 @@
 
 ;;; Code:
 
+(require 'seq)
+
 (defgroup dm-popups nil
   "Small utilities for dismissing popup windows."
   :group 'convenience)
 
 (defcustom dm-quit-or-close-popup-buffer-names
-  '("*compilation*" "*Messages*" "*Warnings*")
+  '("*Backtrace*"
+    "*Compile-Log*"
+    "*Help*"
+    "*Messages*"
+    "*Warnings*"
+    "*compilation*"
+    "*eldoc*")
   "Exact buffer names that `dm-quit-or-close-popup' should close."
   :type '(repeat string)
   :group 'dm-popups)
 
 (defcustom dm-quit-or-close-popup-buffer-prefixes
-  '()
+  '("*Embark Collect"
+    "*Flycheck"
+    "*helpful"
+    "*xref")
   "Buffer name prefixes that `dm-quit-or-close-popup' should close.
 For example, a prefix of \"*Flycheck\" matches buffers such as
 \"*Flycheck errors*\"."

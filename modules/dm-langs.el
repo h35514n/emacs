@@ -108,24 +108,7 @@ Eglot's connect call blocks redisplay until the LSP server returns its
                    (:diagnosticMode "openFilesOnly"
                     :useLibraryCodeForTypes :json-false
                     :exclude ["**/venv" "**/env"
-                              "**/dist" "**/build"]))))
-
-  (with-eval-after-load 'evil
-    (evil-define-key 'normal eglot-mode-map
-      (kbd "K") #'eldoc-print-current-symbol-info)))
-
-(dolist (hook '(python-base-mode-hook
-                elixir-mode-hook
-                elixir-ts-mode-hook
-                rust-mode-hook
-                rust-ts-mode-hook
-                js-mode-hook
-                js-ts-mode-hook
-                jsx-ts-mode-hook
-                typescript-mode-hook
-                typescript-ts-mode-hook
-                tsx-ts-mode-hook))
-  (add-hook hook #'dm-repl-local-keybindings))
+                              "**/dist" "**/build"])))))
 
 ;; Fixed-delay timers fire even if the user starts working immediately, unlike
 ;; idle timers. Use them to pay predictable cold-load costs after the frame is
@@ -134,10 +117,6 @@ Eglot's connect call blocks redisplay until the LSP server returns its
 (add-hook 'emacs-startup-hook
           (lambda ()
             (run-with-timer 0.5 nil (lambda () (require 'eglot)))))
-
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (run-with-timer 1 nil #'dm-find-in-home--refresh-cache)))
 
 ;;; ————————————————————————————
 ;;; Tree-sitter

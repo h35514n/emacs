@@ -165,6 +165,10 @@
    ;; being available everywhere without a prefix.
      "C-," #'embark-dwim
      "C-g" #'dm-quit-or-close-popup
+     "C-h f" #'helpful-callable
+     "C-h k" #'helpful-key
+     "C-h v" #'helpful-variable
+     "C-h x" #'helpful-command
      "M-h" #'windmove-left
      "M-k" #'windmove-up
      "M-j" #'windmove-down
@@ -184,8 +188,6 @@
              "s-{"   #'tab-bar-switch-to-prev-tab
              "s-}"   #'tab-bar-switch-to-next-tab
              "s-p"   #'dm-find-in-home
-             "s-r"   nil
-             "s-R"   #'dm-restart-emacs-and-restore
              "s-P"   #'execute-extended-command
              "s-C-p" #'execute-extended-command-for-buffer
              "s-C-[" #'dm-org-cycle-agenda-prev

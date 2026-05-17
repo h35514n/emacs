@@ -155,17 +155,6 @@ Then enter Evil insert state."
     (kbd "g s i (") #'dm-evil-text-sort-inner-paren
     (kbd "g s i )") #'dm-evil-text-sort-inner-paren)
 
-  ;; unimpaired-style
-  (evil-define-key* 'normal 'global
-    (kbd "[b") #'evil-prev-buffer
-    (kbd "]b") #'evil-next-buffer
-    (kbd "[e") #'flymake-goto-prev-error
-    (kbd "]e") #'flymake-goto-next-error
-    (kbd "[h") #'diff-hl-show-hunk-previous
-    (kbd "]h") #'diff-hl-show-hunk-next
-    (kbd "[t") #'tab-bar-switch-to-prev-tab
-    (kbd "]t") #'tab-bar-switch-to-next-tab)
-
   ;; word chars
   (dm-evil-text--add-to-word-char-list)
 
@@ -174,13 +163,6 @@ Then enter Evil insert state."
     (kbd "S")   #'dm-evil-text-change-back-to-indentation
     (kbd "C-k") #'dm-evil-text-change-to-end-of-line)
 
-  ;; bind this here instead of in tempel so it's not overwritten
-  (evil-define-key 'insert 'global
-    (kbd "C-.") #'tempel-insert)
-
-  ;; emacs lisp
-  (evil-define-key '(normal visual) emacs-lisp-mode-map
-    (kbd "g e") #'dm-evil-eval-sexp-dwim)
   nil)
 
 (provide 'dm-evil-text)

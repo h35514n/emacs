@@ -37,6 +37,7 @@
 (require 'comint)
 (require 'compile)
 (require 'project)
+(require 'seq)
 (require 'subr-x)
 
 (defvar code-cells-mode)
@@ -45,6 +46,20 @@
 
 (defvar-local dm-repl-comint-buffer nil
   "Comint REPL buffer associated with the current source buffer.")
+
+(defconst dm-repl-local-binding-hooks
+  '(python-base-mode-hook
+    elixir-mode-hook
+    elixir-ts-mode-hook
+    rust-mode-hook
+    rust-ts-mode-hook
+    js-mode-hook
+    js-ts-mode-hook
+    jsx-ts-mode-hook
+    typescript-mode-hook
+    typescript-ts-mode-hook
+    tsx-ts-mode-hook)
+  "Mode hooks that should receive Daymacs REPL local bindings.")
 
 (defun dm-repl-project-root ()
   "Return the current project root, falling back to `default-directory'."
@@ -189,46 +204,133 @@ MODE is an optional major mode for the REPL buffer."
   "Send region START END to the project Rust REPL."
   (dm-repl--send-region-to-comint start end #'dm-rust-repl))
 
+(defun dm-python-start-or-pop ()
+  "Start or pop to the current Python dREPL."
+  (if (dm-drepl-buffer-live-p)
+      (drepl-pop-to-repl nil)
+    (dm-python-repl)))
+
+(defun dm-node-start-or-pop ()
+  "Start or pop to the current Node dREPL."
+  (if (dm-drepl-buffer-live-p)
+      (drepl-pop-to-repl nil)
+    (dm-node-repl)))
+
+(defun dm-elixir-start-or-pop ()
+  "Start or pop to the current project IEx process."
+  (require 'inf-elixir)
+  (inf-elixir-project))
+
+(defun dm-python-eval-region (start end)
+  "Evaluate region START END in the current Python dREPL."
+  (dm-drepl-ensure #'dm-python-repl)
+  (drepl-eval-region start end))
+
+(defun dm-node-eval-region (start end)
+  "Evaluate region START END in the current Node dREPL."
+  (dm-drepl-ensure #'dm-node-repl)
+  (drepl-eval-region start end))
+
+(defun dm-elixir-check ()
+  "Compile the current Elixir project with warnings as errors."
+  (let ((default-directory (dm-repl-project-root)))
+    (compile "mix compile --warnings-as-errors")))
+
+(defun dm-node-check ()
+  "Run the JavaScript/TypeScript typecheck command."
+  (let ((default-directory (dm-repl-project-root)))
+    (compile "npm run typecheck")))
+
+(defun dm-elixir-test-dwim ()
+  "Run the nearest or current-buffer Elixir test."
+  (require 'exunit)
+  (if (and buffer-file-name (string-match-p "_test\\.exs\\'" buffer-file-name))
+      (exunit-verify-single)
+    (exunit-verify)))
+
+(defun dm-elixir-test-all ()
+  "Run all Elixir tests."
+  (require 'exunit)
+  (exunit-verify-all))
+
+(defun dm-python-repl-setup ()
+  "Enable Python REPL helpers in the current buffer."
+  (when (fboundp 'pet-mode)
+    (pet-mode 1)))
+
+(defun dm-elixir-repl-setup ()
+  "Enable Elixir REPL and test helpers in the current buffer."
+  (when (fboundp 'inf-elixir-minor-mode)
+    (inf-elixir-minor-mode 1))
+  (when (fboundp 'exunit-mode)
+    (exunit-mode 1)))
+
+(defconst dm-repl-language-specs
+  '((python
+     :modes (python-base-mode python-mode python-ts-mode)
+     :start-pop dm-python-start-or-pop
+     :eval-region dm-python-eval-region
+     :check dm-python-test-buffer
+     :test dm-python-test-buffer
+     :test-all dm-python-test-all
+     :setup dm-python-repl-setup)
+    (elixir
+     :modes (elixir-mode elixir-ts-mode)
+     :start-pop dm-elixir-start-or-pop
+     :eval-region dm-elixir-send-region
+     :check dm-elixir-check
+     :test dm-elixir-test-dwim
+     :test-all dm-elixir-test-all
+     :setup dm-elixir-repl-setup)
+    (rust
+     :modes (rust-mode rust-ts-mode)
+     :start-pop dm-rust-repl
+     :eval-region dm-rust-send-region
+     :check dm-rust-cargo-check
+     :test dm-rust-cargo-test
+     :test-all dm-rust-cargo-test)
+    (typescript
+     :modes (typescript-mode typescript-ts-mode tsx-ts-mode)
+     :start-pop dm-typescript-repl
+     :eval-region dm-typescript-send-region
+     :check dm-node-check
+     :test dm-node-test
+     :test-all dm-node-test)
+    (javascript
+     :modes (js-mode js-ts-mode jsx-ts-mode)
+     :start-pop dm-node-start-or-pop
+     :eval-region dm-node-eval-region
+     :check dm-node-check
+     :test dm-node-test
+     :test-all dm-node-test))
+  "Language-specific REPL, eval, check, test, and setup commands.")
+
+(defun dm-repl-language-spec ()
+  "Return the current buffer's language spec, or nil."
+  (seq-find
+   (lambda (spec)
+     (apply #'dm-repl--mode-p (plist-get (cdr spec) :modes)))
+   dm-repl-language-specs))
+
+(defun dm-repl-command (key error-message)
+  "Return the current language command for KEY, or signal ERROR-MESSAGE."
+  (if-let* ((spec (dm-repl-language-spec))
+            (command (plist-get (cdr spec) key)))
+      command
+    (user-error error-message major-mode)))
+
 (defun dm-pop-to-window-right ()
   "Select a right-side window, creating one if necessary."
   (let ((win (or (window-in-direction 'right)
                  (split-window-right))))
     (select-window win)))
 
-(defun dm-repl-command-for-current-buffer ()
-  "Return a REPL command appropriate for the current buffer."
-  (cond
-   ((dm-repl--mode-p 'python-base-mode 'python-mode 'python-ts-mode)
-    (lambda ()
-      (if (dm-drepl-buffer-live-p)
-          (drepl-pop-to-repl nil)
-        (dm-python-repl))))
-
-   ((dm-repl--mode-p 'elixir-mode 'elixir-ts-mode)
-    (lambda ()
-      (require 'inf-elixir)
-      (inf-elixir-project)))
-
-   ((dm-repl--mode-p 'rust-mode 'rust-ts-mode)
-    #'dm-rust-repl)
-
-   ((dm-repl--mode-p 'typescript-mode 'typescript-ts-mode 'tsx-ts-mode)
-    #'dm-typescript-repl)
-
-   ((dm-repl--mode-p 'js-mode 'js-ts-mode 'jsx-ts-mode)
-    (lambda ()
-      (if (dm-drepl-buffer-live-p)
-          (drepl-pop-to-repl nil)
-        (dm-node-repl))))
-
-   (t
-    (user-error "No REPL configured for %s" major-mode))))
-
 ;;;###autoload
 (defun dm-repl-start-or-pop ()
   "Start or pop to the REPL appropriate for the current buffer."
   (interactive)
-  (let ((command (dm-repl-command-for-current-buffer)))
+  (let ((command (dm-repl-command
+                  :start-pop "No REPL configured for %s")))
     (dm-pop-to-window-right)
     (funcall command)))
 
@@ -236,21 +338,9 @@ MODE is an optional major mode for the REPL buffer."
 (defun dm-repl-eval-region (start end)
   "Evaluate region START END in the language-appropriate REPL."
   (interactive "r")
-  (cond
-   ((dm-repl--mode-p 'python-base-mode 'python-mode 'python-ts-mode)
-    (dm-drepl-ensure #'dm-python-repl)
-    (drepl-eval-region start end))
-   ((dm-repl--mode-p 'elixir-mode 'elixir-ts-mode)
-    (dm-elixir-send-region start end))
-   ((dm-repl--mode-p 'rust-mode 'rust-ts-mode)
-    (dm-rust-send-region start end))
-   ((dm-repl--mode-p 'typescript-mode 'typescript-ts-mode 'tsx-ts-mode)
-    (dm-typescript-send-region start end))
-   ((dm-repl--mode-p 'js-mode 'js-ts-mode 'jsx-ts-mode)
-    (dm-drepl-ensure #'dm-node-repl)
-    (drepl-eval-region start end))
-   (t
-    (user-error "No eval command configured for %s" major-mode))))
+  (funcall (dm-repl-command
+            :eval-region "No eval command configured for %s")
+           start end))
 
 ;;;###autoload
 (defun dm-repl-eval-line ()
@@ -340,58 +430,22 @@ MODE is an optional major mode for the REPL buffer."
 (defun dm-repl-check-dwim ()
   "Run the fastest project check for the current language."
   (interactive)
-  (cond
-   ((dm-repl--mode-p 'rust-mode 'rust-ts-mode)
-    (dm-rust-cargo-check))
-   ((dm-repl--mode-p 'elixir-mode 'elixir-ts-mode)
-    (let ((default-directory (dm-repl-project-root)))
-      (compile "mix compile --warnings-as-errors")))
-   ((dm-repl--mode-p 'typescript-mode 'typescript-ts-mode 'tsx-ts-mode
-                     'js-mode 'js-ts-mode 'jsx-ts-mode)
-    (let ((default-directory (dm-repl-project-root)))
-      (compile "npm run typecheck")))
-   ((dm-repl--mode-p 'python-base-mode 'python-mode 'python-ts-mode)
-    (dm-python-test-buffer))
-   (t
-    (user-error "No check command configured for %s" major-mode))))
+  (funcall (dm-repl-command
+            :check "No check command configured for %s")))
 
 ;;;###autoload
 (defun dm-repl-test-dwim ()
   "Run the nearest or current-buffer test for the current language."
   (interactive)
-  (cond
-   ((dm-repl--mode-p 'elixir-mode 'elixir-ts-mode)
-    (require 'exunit)
-    (if (and buffer-file-name (string-match-p "_test\\.exs\\'" buffer-file-name))
-        (exunit-verify-single)
-      (exunit-verify)))
-   ((dm-repl--mode-p 'python-base-mode 'python-mode 'python-ts-mode)
-    (dm-python-test-buffer))
-   ((dm-repl--mode-p 'rust-mode 'rust-ts-mode)
-    (dm-rust-cargo-test))
-   ((dm-repl--mode-p 'typescript-mode 'typescript-ts-mode 'tsx-ts-mode
-                     'js-mode 'js-ts-mode 'jsx-ts-mode)
-    (dm-node-test))
-   (t
-    (user-error "No test command configured for %s" major-mode))))
+  (funcall (dm-repl-command
+            :test "No test command configured for %s")))
 
 ;;;###autoload
 (defun dm-repl-test-all ()
   "Run all tests for the current language."
   (interactive)
-  (cond
-   ((dm-repl--mode-p 'elixir-mode 'elixir-ts-mode)
-    (require 'exunit)
-    (exunit-verify-all))
-   ((dm-repl--mode-p 'python-base-mode 'python-mode 'python-ts-mode)
-    (dm-python-test-all))
-   ((dm-repl--mode-p 'rust-mode 'rust-ts-mode)
-    (dm-rust-cargo-test))
-   ((dm-repl--mode-p 'typescript-mode 'typescript-ts-mode 'tsx-ts-mode
-                     'js-mode 'js-ts-mode 'jsx-ts-mode)
-    (dm-node-test))
-   (t
-    (user-error "No test command configured for %s" major-mode))))
+  (funcall (dm-repl-command
+            :test-all "No test command configured for %s")))
 
 ;;;###autoload
 (defun dm-repl-local-keybindings ()
@@ -399,17 +453,14 @@ MODE is an optional major mode for the REPL buffer."
   (local-set-key (kbd "C-c C-c") #'dm-repl-eval-dwim)
   (local-set-key (kbd "C-c C-b") #'dm-repl-eval-buffer)
   (local-set-key (kbd "C-c C-z") #'dm-repl-start-or-pop)
-  (cond
-   ((dm-repl--mode-p 'python-base-mode 'python-mode 'python-ts-mode)
-    (when (fboundp 'pet-mode)
-      (pet-mode 1)))
-   ((dm-repl--mode-p 'elixir-mode 'elixir-ts-mode)
-    (when (fboundp 'inf-elixir-minor-mode)
-      (inf-elixir-minor-mode 1))
-    (when (fboundp 'exunit-mode)
-      (exunit-mode 1))))
+  (when-let* ((spec (dm-repl-language-spec))
+              (setup (plist-get (cdr spec) :setup)))
+    (funcall setup))
   (when (fboundp 'code-cells-mode-maybe)
     (code-cells-mode-maybe)))
+
+(dolist (hook dm-repl-local-binding-hooks)
+  (add-hook hook #'dm-repl-local-keybindings))
 
 (use-package pet
   :commands (pet-mode pet-verify-setup))

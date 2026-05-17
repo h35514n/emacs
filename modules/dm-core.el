@@ -7,32 +7,6 @@
 
 ;;; Code:
 
-;;; Popup policy used by `dm-popup-quit'.
-
-(setq dm-quit-or-close-popup-buffer-names
-      '("*Backtrace*"
-        "*Compile-Log*"
-        "*Help*"
-        "*Messages*"
-        "*Warnings*"
-        "*compilation*"
-        "*eldoc*"))
-
-(setq dm-quit-or-close-popup-buffer-prefixes
-      '("*Embark Collect"
-        "*Flycheck"
-        "*helpful"
-        "*xref"))
-
-;;; Test/implementation toggle bridge.
-
-(with-eval-after-load 'evil
-  (evil-define-command dm-evil-toggle-test-implementation ()
-    "Toggle between implementation and test file."
-    :repeat nil
-    (dm-toggle-test-implementation))
-  (evil-ex-define-cmd "A" #'dm-evil-toggle-test-implementation))
-
 ;;; Core Emacs settings.
 
 ;; Prefer UTF-8 everywhere.

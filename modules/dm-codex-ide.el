@@ -1,4 +1,4 @@
-;;; codex-ide.el --- Codex CLI integration via eat -*- lexical-binding: t; -*-
+;;; dm-codex-ide.el --- Codex CLI integration via eat -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
