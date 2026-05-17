@@ -31,13 +31,13 @@
   (evil-define-key 'normal 'global (kbd "-") #'dired-jump))
 
 (use-package visual-fill-column
-  :hook ((markdown-mode . visual-line-mode)
-         (prog-mode . visual-fill-column-mode))
+  :hook ((prog-mode . visual-fill-column-mode))
   :custom
   (visual-fill-column-width 80))
 
 (use-package olivetti
-  :hook ((org-mode text-mode) . olivetti-mode)
+  :hook (((org-mode text-mode) . olivetti-mode)
+         (olivetti-mode        . visual-line-mode))
   :custom
   (olivetti-style 'fancy)
   (olivetti-body-width 92)
