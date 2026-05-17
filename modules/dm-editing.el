@@ -212,5 +212,33 @@
   :hook ((emacs-lisp-mode . hs-minor-mode)
          (lisp-interaction-mode . hs-minor-mode)))
 
+(defun dm-editing-formatting-keybindings ()
+  "Bind Super text-formatting commands in the current buffer."
+  (dolist (state '(normal visual insert))
+    (evil-local-set-key state (kbd "s-b") #'dm-text-make-bold)
+    (evil-local-set-key state (kbd "s-i") #'dm-text-make-italic)
+    (evil-local-set-key state (kbd "s-u") #'dm-text-make-underlined)
+    (evil-local-set-key state (kbd "s-X") #'dm-text-make-strikethrough)))
+
+(dolist (hook '(LaTeX-mode-hook
+                latex-mode-hook
+                markdown-mode-hook
+                gfm-mode-hook
+                org-mode-hook))
+  (add-hook hook #'dm-editing-formatting-keybindings))
+
+(defun dm-editing-latex-keybindings ()
+  "Bind latex-formatting commands in the current buffer."
+  (dolist (state '(visual))
+    (evil-local-set-key state (kbd "C-b") #'dm-text-latex-wrap-as-boxed)
+    (evil-local-set-key state (kbd "C-f") #'dm-text-latex-wrap-as-frac)
+    (evil-local-set-key state (kbd "C-e") #'dm-text-latex-evaluate-selection)
+    (evil-local-set-key state (kbd "C-m") #'dm-text-latex-wrap-as-math)
+    (evil-local-set-key state (kbd "C-s") #'dm-text-latex-wrap-as-si)))
+
+(dolist (hook '(LaTeX-mode-hook latex-mode-hook))
+  (add-hook hook #'dm-editing-latex-keybindings))
+
+
 (provide 'dm-editing)
 ;;; dm-editing.el ends here
