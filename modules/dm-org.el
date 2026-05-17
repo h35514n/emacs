@@ -24,11 +24,7 @@
   ;; ORG_HOME is set in env/emacs.sh; fall back to ~/Org.
   (org-directory (or (getenv "ORG_HOME") (expand-file-name "~/Org")))
   (org-default-notes-file (dm-org-file "notes"))
-  (org-agenda-files (dm-util-list-sans
-                     (directory-files org-directory nil "\\.org\\'")
-                     "beorg-reminders.org"
-                     "beorg-calendar.org"
-                     "beorg-customize-init.org"))
+  (org-agenda-files (expand-file-name ".agenda-files.el" org-directory))
   ;; Visual preferences.
   (org-startup-indented t)
   (org-hide-leading-stars t)
