@@ -44,5 +44,13 @@
   :hook ((emacs-lisp-mode . hs-minor-mode)
          (lisp-interaction-mode . hs-minor-mode)))
 
+(use-package copy-as-format
+  :straight (:type git :host github :repo "h35514n/copy-as-format")
+  :custom
+  (copy-as-format-default "github")
+  (copy-as-format-include-source-link t)
+  (copy-as-format-include-metadata-comment t)
+  (copy-as-format-github-folded-prompt-for-summary t))
+
 (provide 'dm-editing)
 ;;; dm-editing.el ends here
