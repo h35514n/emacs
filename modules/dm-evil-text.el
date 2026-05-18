@@ -7,6 +7,9 @@
 (require 'cl-lib)
 (require 'evil)
 
+(declare-function copy-as-format "copy-as-format")
+(defvar evil-commentary-mode-map)
+
 ;; ----------------------
 ;; Word char adjustments
 ;; ----------------------
@@ -100,6 +103,57 @@ With prefix argument DESC, sort in descending order."
   (interactive "P")
   (dm-evil-text-sort-inner 'bracket desc))
 
+;; ----------------------------------
+;; Copy-as-format (vim: yank) motions
+;; ----------------------------------
+
+(defun dm-evil-text-copy-inner (textobj)
+  "Copy the TEXTOBJ surrounding point.
+When DESC is non-nil, copy in descending order.  TEXTOBJ should
+name the suffix of an `evil-inner-*' text object."
+  (let ((evil-textobj (intern (format "evil-inner-%s" textobj)))
+        (start-pos (point)))
+    (save-excursion
+      (let* ((bounds (call-interactively evil-textobj))
+             (beg (cl-first bounds))
+             (end (cl-second bounds)))
+        (goto-char beg)
+        (set-mark end)
+        (activate-mark)
+        (setq current-prefix-arg '(4))
+        (copy-as-format)))
+    (goto-char start-pos)))
+
+(defun dm-evil-text-copy-inner-paragraph (desc)
+  "Copy inside the paragraph under point.
+With prefix argument DESC, copy in descending order."
+  (interactive "P")
+  (dm-evil-text-copy-inner 'paragraph))
+
+(defun dm-evil-text-copy-inner-buffer (desc)
+  "Copy inside the current buffer.
+With prefix argument DESC, copy in descending order."
+  (interactive "P")
+  (dm-evil-text-copy-inner 'buffer))
+
+(defun dm-evil-text-copy-inner-curly (desc)
+  "Copy inside the current curly braces.
+With prefix argument DESC, copy in descending order."
+  (interactive "P")
+  (dm-evil-text-copy-inner 'curly))
+
+(defun dm-evil-text-copy-inner-paren (desc)
+  "Copy inside the current parentheses.
+With prefix argument DESC, copy in descending order."
+  (interactive "P")
+  (dm-evil-text-copy-inner 'paren))
+
+(defun dm-evil-text-copy-inner-bracket (desc)
+  "Copy inside the current brackets.
+With prefix argument DESC, copy in descending order."
+  (interactive "P")
+  (dm-evil-text-copy-inner 'bracket))
+
 ;; ---------------
 ;; Change behavior
 ;; ---------------
@@ -154,6 +208,21 @@ Then enter Evil insert state."
     (kbd "g s i ]") #'dm-evil-text-sort-inner-bracket
     (kbd "g s i (") #'dm-evil-text-sort-inner-paren
     (kbd "g s i )") #'dm-evil-text-sort-inner-paren)
+
+  ;; yank motions
+  (evil-define-key* 'normal 'global
+    (kbd "g y i p") #'dm-evil-text-copy-inner-paragraph
+    (kbd "g y i g") #'dm-evil-text-copy-inner-buffer
+    (kbd "g y i {") #'dm-evil-text-copy-inner-curly
+    (kbd "g y i }") #'dm-evil-text-copy-inner-curly
+    (kbd "g y i [") #'dm-evil-text-copy-inner-bracket
+    (kbd "g y i ]") #'dm-evil-text-copy-inner-bracket
+    (kbd "g y i (") #'dm-evil-text-copy-inner-paren
+    (kbd "g y i )") #'dm-evil-text-copy-inner-paren)
+  (with-eval-after-load 'evil-commentary
+    ;; Let the global `g y i ...' bindings win over commentary's `gy' operator.
+    (evil-define-key* 'normal evil-commentary-mode-map
+      (kbd "g y") nil))
 
   ;; word chars
   (dm-evil-text--add-to-word-char-list)

@@ -241,10 +241,13 @@
       (("\\`g\\'"         . nil) .  (nil . "custom motions"))
       (("\\`g s\\'"       . nil) .  (nil . "sort"))
       (("\\`g s i\\'"     . nil) .  (nil . "inside"))
+      (("\\`g y\\'"       . nil) .  (nil . "copy-as-format"))
+      (("\\`g y i\\'"     . nil) .  (nil . "inside"))
       ;; name substitutions (roughly in descending order of width savings)
       ((nil . "\\`evil-collection-unimpaired-") . (nil . ""))
       ((nil . "\\`evil-collection-")            . (nil . ""))
       ((nil . "\\`dm-evil-text-sort-inner-")    . (nil . ""))
+      ((nil . "\\`dm-evil-text-copy-inner-")    . (nil . ""))
       ((nil . "find-file-at-point")             . (nil . "ffap"))
 
       ((nil . "\\`evil-\\(.*\\)previous\\(.*\\)\\'")           . (nil . "\\1prev\\2"))
