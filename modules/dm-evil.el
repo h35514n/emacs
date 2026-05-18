@@ -100,13 +100,14 @@
         )
     (setq evil-collection-calendar-want-org-bindings  nil)
     (setq evil-collection-setup-debugger-keys         nil)
-    (setq evil-collection-setup-minibuffer            nil) ;; disabled: induces hitting ESC in normal mode and accidentally quitting
     (setq evil-collection-want-find-usages-bindings   nil)
     (setq evil-collection-want-unimpaired-p           nil)
     (setq evil-collection-state-denylist              nil)
     (setq evil-collection-state-passlist              nil)
     (setq evil-collection-key-blacklist               nil)
     (setq evil-collection-key-whitelist               nil)
+    ;; disabled: induces hitting ESC in normal mode and accidentally quitting
+    (setq evil-collection-setup-minibuffer            nil)
   :config
   (evil-collection-init))
 
