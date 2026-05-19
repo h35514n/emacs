@@ -31,6 +31,7 @@
 (require 'dm-env)
 (require 'dm-vcs)
 (require 'dm-ai)
+(require 'dm-apps)
 (require 'dm-terminal)
 (require 'dm-org)
 (require 'dm-langs)
