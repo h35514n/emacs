@@ -175,20 +175,45 @@ agenda file, cycle as usual by one step in the chosen direction."
 ;;; ————————————————————————————
 
 (setq org-capture-templates
-      '(("i" "Inbox"     entry (file+olp org-default-notes-file "Inbox")      "* TODO %?\n%i%a"
-         :prepend t      :after-finalize #'dm-org-capture--save-target-buffer-h)
-        ("y" "Yak Shave" entry (file+olp org-default-notes-file "Yak Shaves") "* TODO %?\n%i%a"
-         :prepend t      :after-finalize #'dm-org-capture--save-target-buffer-h)
-        ("j" "Journal"   entry (file+olp+datetree "journal.org.gpg")    "* %U %?\n%i"
-         :prepend t      :after-finalize #'dm-org-capture--save-target-buffer-h :tree-type month)
-        ("l" "Link"      entry (file+headline "links.org" "Inbox")      #'dm-org-capture--make-link-entry
-         :prepend t      :after-finalize #'dm-org-capture--save-target-buffer-h :immediate-finish t)
+      '(("i" "Inbox"     entry (file+olp org-default-notes-file "Inbox")
+         "* TODO %?\n%i%a"
+         :prepend t
+         :after-finalize dm-org-capture--save-target-buffer-h)
+
+        ("y" "Yak Shave" entry (file+olp org-default-notes-file "Yak Shaves")
+         "* TODO %?\n%i%a"
+         :prepend t
+         :after-finalize dm-org-capture--save-target-buffer-h)
+
+        ("j" "Journal"   entry (file+olp+datetree "journal.org.gpg")
+         "* %U %?\n%i"
+         :prepend t :tree-type month
+         :after-finalize dm-org-capture--save-target-buffer-h)
+
+        ("l" "Link"      entry (file+headline "links.org" "Inbox")
+         #'dm-org-capture--make-link-entry
+         :prepend t :immediate-finish t
+         :after-finalize dm-org-capture--save-target-buffer-h)
+
+        ("d" "Draft" entry (file+headline "lex/drafts.org" "Drafts")
+         (function dm-org-capture--hugo-draft)
+         :prepend t :jump-to-captured t
+         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)
+
+        ("n" "Notebook" entry (file+headline "lex/notebook.org" "Notes")
+         (function dm-org-capture--hugo-draft)
+         :prepend t :jump-to-captured t
+         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)
+
         ("c" "Commonplace" entry (file+headline "lex/commonplaces.org" "Commonplaces")
          (function dm-org-capture--hugo-commonplace)
-         :prepend t :after-finalize #'dm-org-capture--save-target-buffer-h)
+         :prepend t
+         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)
+
         ("m" "Marginalia" entry (file+headline "lex/marginalia.org" "Marginalia")
          (function dm-org-capture--hugo-marginalia)
-         :prepend t :after-finalize #'dm-org-capture--save-target-buffer-h)))
+         :prepend t
+         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)))
 
 (defun dm-org-capture--save-target-buffer-h ()
   "Save the target buffer after an Org capture is finalized.
