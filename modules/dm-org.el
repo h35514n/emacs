@@ -101,9 +101,7 @@ Used from bin/generate."
                  (derived-mode-p 'org-mode))
         (save-buffer)
         (require 'ox-hugo)
-        (save-excursion
-          (goto-char marker)
-          (org-hugo-export-wim-to-md :all-subtrees))))))
+        (org-hugo-export-wim-to-md :all-subtrees)))))
 
 ;;; ————————————————————————————
 ;;; Org agenda custom commands
