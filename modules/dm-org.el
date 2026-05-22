@@ -92,6 +92,19 @@ Used from bin/generate."
                  #'dm-org-hugo-export-all-subtrees-after-save
                  :local)))
 
+(defun dm-org-hugo-capture--save-and-export-target-buffer-h ()
+  "Save and export the target Org buffer after an Org capture is finalized."
+  (when-let* ((marker org-capture-last-stored-marker)
+              (buffer (marker-buffer marker)))
+    (with-current-buffer buffer
+      (when (and (buffer-file-name)
+                 (derived-mode-p 'org-mode))
+        (save-buffer)
+        (require 'ox-hugo)
+        (save-excursion
+          (goto-char marker)
+          (org-hugo-export-wim-to-md :all-subtrees))))))
+
 ;;; ————————————————————————————
 ;;; Org agenda custom commands
 ;;; ————————————————————————————
@@ -198,22 +211,22 @@ agenda file, cycle as usual by one step in the chosen direction."
         ("d" "Draft" entry (file+headline "lex/drafts.org" "Drafts")
          (function dm-org-capture--hugo-draft)
          :prepend t :jump-to-captured t
-         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)
+         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
         ("n" "Notebook" entry (file+headline "lex/notebook.org" "Notes")
          (function dm-org-capture--hugo-draft)
          :prepend t :jump-to-captured t
-         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)
+         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
         ("c" "Commonplace" entry (file+headline "lex/commonplaces.org" "Commonplaces")
          (function dm-org-capture--hugo-commonplace)
          :prepend t
-         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)
+         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
         ("m" "Marginalia" entry (file+headline "lex/marginalia.org" "Marginalia")
          (function dm-org-capture--hugo-marginalia)
          :prepend t
-         :after-finalize dm-org-capture--hugo-save-and-export-target-buffer-h)))
+         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)))
 
 (defun dm-org-capture--save-target-buffer-h ()
   "Save the target buffer after an Org capture is finalized.
@@ -222,19 +235,6 @@ agenda file, cycle as usual by one step in the chosen direction."
   (when (and (buffer-file-name)
              (derived-mode-p 'org-mode))
     (save-buffer)))
-
-(defun dm-org-capture--hugo-save-and-export-target-buffer-h ()
-  "Save and export the target Org buffer after an Org capture is finalized."
-  (when-let* ((marker org-capture-last-stored-marker)
-              (buffer (marker-buffer marker)))
-    (with-current-buffer buffer
-      (when (and (buffer-file-name)
-                 (derived-mode-p 'org-mode))
-        (save-buffer)
-        (require 'ox-hugo)
-        (save-excursion
-          (goto-char marker)
-          (org-hugo-export-wim-to-md :all-subtrees))))))
 
 (defun dm-org--timestamp ()
   "Return a timestamp in ISO 8601 format."
