@@ -190,8 +190,8 @@
              "s-p"   #'dm-find-in-home
              "s-P"   #'execute-extended-command
              "s-C-p" #'execute-extended-command-for-buffer
-             "s-C-[" #'dm-org-cycle-agenda-prev
-             "s-C-]" #'dm-org-cycle-agenda-next
+             "s-C-[" #'dm-org-agenda-cycle-prev
+             "s-C-]" #'dm-org-agenda-cycle-next
              "s-f"   #'avy-goto-char-2
              "s-g"   #'magit-status
              "s-k"   #'bury-buffer

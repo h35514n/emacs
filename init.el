@@ -34,6 +34,8 @@
 (require 'dm-apps)
 (require 'dm-terminal)
 (require 'dm-org)
+(require 'dm-org-hugo)
+(require 'dm-org-capture)
 (require 'dm-langs)
 (require 'dm-keys)
 

@@ -160,9 +160,18 @@ process buffers below the selected window.
 
 ;;; Generated autoloads from dm-org.el
 
-(autoload 'dm-org-cycle-agenda-next "dm-org"
+(autoload 'dm-org-agenda-cycle-files "dm-org"
+"Cycle through `org-agenda-files'. Positive ARG moves forward, negative moves backward.
+
+If called from outside an agenda file, jump to `org-default-notes-file' if
+present in the list (case-insensitive basename match), otherwise the first
+agenda file. Do not advance past that file on this initial jump. From within an
+agenda file, cycle as usual by one step in the chosen direction.
+
+(fn &optional ARG)" t)
+(autoload 'dm-org-agenda-cycle-next "dm-org"
 "Cycle forward through `org-agenda-files'." t)
-(autoload 'dm-org-cycle-agenda-prev "dm-org"
+(autoload 'dm-org-agenda-cycle-prev "dm-org"
 "Cycle backward through `org-agenda-files'." t)
 (register-definition-prefixes "dm-org" '("dm-org-"))
 
@@ -304,6 +313,16 @@ If already open, reload it.
 Close tab if sole window in tab, close frame if multiple frames exist,
 otherwise kill Emacs." t)
 (register-definition-prefixes "dm-window" '("dm-window-"))
+
+
+;;; Generated autoloads from dm-org-capture.el
+
+(register-definition-prefixes "dm-org-capture" '("dm-org-capture--"))
+
+
+;;; Generated autoloads from dm-org-hugo.el
+
+(register-definition-prefixes "dm-org-hugo" '("dm-org-hugo-"))
 
 ;;; End of scraped data
 
