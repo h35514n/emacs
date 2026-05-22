@@ -95,12 +95,17 @@ visual wrapping more closely matches the intended `fill-column'."
 
 ;;; Package-backed appearance.
 
-(set-face-attribute 'default nil :family "Source Code Pro Ligaturized" :height 180)
+(set-face-attribute 'default nil :family "Source Code Pro Ligaturized" :height 170)
 
-(use-package doom-themes
-  :defer 0.3
+(use-package gruvbox-theme
   :config
-  (load-theme 'doom-one t))
+  (load-theme 'gruvbox-dark-medium t)
+  ;; Gruvbox tints the line-number gutter lighter than the buffer body; match
+  ;; the body so the gutter blends in.
+  (set-face-attribute 'line-number nil
+                      :background (face-attribute 'default :background))
+  (set-face-attribute 'line-number-current-line nil
+                      :background (face-attribute 'default :background)))
 
 (use-package mood-line
   :config

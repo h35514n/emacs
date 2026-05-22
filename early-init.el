@@ -15,8 +15,8 @@
         (horizontal-scroll-bars . nil)
         (ns-transparent-titlebar . t)
         (ns-appearance . dark)
-        (background-color . "#282c34")
-        (foreground-color . "#bbc2cf")))
+        (background-color . "#282828")
+        (foreground-color . "#ebdbb2")))
 
 ;; Suppress the "Welcome to GNU Emacs" splash screen and "For information about
 ;; GNU Emacs..." minibuffer message.
@@ -28,12 +28,12 @@
 ;; Seed the initial frame with theme colors before the full theme loads.
 ;; Seed the startup mode-line too, so it doesn't flash the default palette
 ;; before the full theme and modeline packages load.
-(set-face-attribute 'default   nil :background "#282c34" :foreground "#bbc2cf")
-(set-face-attribute 'fringe    nil :background "#282c34" :foreground "#bbc2cf")
-(set-face-attribute 'mode-line nil :background "#1e2026" :foreground "#bbc2cf" :box nil)
-(set-face-attribute 'mode-line-inactive nil :background "#1e2026" :foreground "#5B6268" :box nil)
+(set-face-attribute 'default   nil :background "#282828" :foreground "#ebdbb2")
+(set-face-attribute 'fringe    nil :background "#282828" :foreground "#ebdbb2")
+(set-face-attribute 'mode-line nil :background "#3c3836" :foreground "#ebdbb2" :box nil)
+(set-face-attribute 'mode-line-inactive nil :background "#3c3836" :foreground "#a89984" :box nil)
 (when (facep 'mode-line-active)
-  (set-face-attribute 'mode-line-active nil :background "#1e2026" :foreground "#bbc2cf" :box nil))
+  (set-face-attribute 'mode-line-active nil :background "#3c3836" :foreground "#ebdbb2" :box nil))
 
 ;; Prevent package.el from activating packages — straight.el owns that.
 (setq package-enable-at-startup nil)
