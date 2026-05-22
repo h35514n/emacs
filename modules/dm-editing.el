@@ -17,7 +17,6 @@
   (dired-listing-switches "-Ah --group-directories-first"))
 
 (use-package visual-fill-column
-  :hook ((prog-mode . visual-fill-column-mode))
   :custom
   (visual-fill-column-width 80))
 
