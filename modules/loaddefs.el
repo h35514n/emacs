@@ -322,7 +322,8 @@ otherwise kill Emacs." t)
 
 ;;; Generated autoloads from dm-org-hugo.el
 
-(register-definition-prefixes "dm-org-hugo" '("dm-org-hugo-"))
+(register-definition-prefixes "dm-org-hugo" '("dm-"))
+
 
 ;;; End of scraped data
 

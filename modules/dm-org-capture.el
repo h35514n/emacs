@@ -32,6 +32,11 @@
          :prepend t :jump-to-captured t
          :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
+        ("s" "Scratch" entry (file+headline "lex/scratch.org" "Scratch")
+         (function dm-org-capture--hugo-scratch)
+         :prepend t
+         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
+
         ("n" "Notebook" entry (file+headline "lex/notebook.org" "Notes")
          (function dm-org-capture--hugo-draft)
          :prepend t :jump-to-captured t
@@ -81,25 +86,38 @@
                    "%?\n")
                  "\n"))))
 
-(defun dm-org-capture--hugo-draft ()
-  "Return `org-capture' template string for new Hugo blog post.
+(defun dm-org-capture--hugo-post (&optional with-summary)
+  "Return `org-capture' template string for a Hugo blog post.
+With non-nil WITH-SUMMARY, also prompt for a summary and emit an
+EXPORT_HUGO_CUSTOM_FRONT_MATTER property carrying :toc and :summary.
 See `org-capture-templates' for more information."
   (save-match-data
-    (let ((date (format-time-string "%Y-%m-%d" (current-time)))
-          (timestamp (dm-org-capture--timestamp))
-          (title (read-from-minibuffer "Title: " ""))
-          (summary (read-from-minibuffer "Summary: " "")))
+    (let* ((date (format-time-string "%Y-%m-%d" (current-time)))
+           (timestamp (dm-org-capture--timestamp))
+           (title (read-from-minibuffer "Title: " ""))
+           (slug (concat date "-" (org-hugo-slug title)))
+           (summary (and with-summary (read-from-minibuffer "Summary: " ""))))
       (mapconcat #'identity
-                 `(
-                   ,(concat "* " title)
-                   ":PROPERTIES:"
-                   ,(concat ":EXPORT_DATE: " timestamp)
-                   ,(concat ":EXPORT_FILE_NAME: " date "-" (org-hugo-slug title))
-                   ,(concat ":EXPORT_HUGO_SLUG: " date "-" (org-hugo-slug title))
-                   ,(concat ":EXPORT_HUGO_CUSTOM_FRONT_MATTER: :toc true :summary " summary)
-                   ":END:"
-                   "%?\n")
+                 (delq nil
+                       `(,(concat "* " title)
+                         ":PROPERTIES:"
+                         ,(concat ":EXPORT_DATE: " timestamp)
+                         ,(concat ":EXPORT_FILE_NAME: " slug)
+                         ,(concat ":EXPORT_HUGO_SLUG: " slug)
+                         ,(when summary
+                            (concat ":EXPORT_HUGO_CUSTOM_FRONT_MATTER: :toc true :summary "
+                                    summary))
+                         ":END:"
+                         "%?\n"))
                  "\n"))))
+
+(defun dm-org-capture--hugo-draft ()
+  "Return `org-capture' template string for a Hugo draft (title + summary)."
+  (dm-org-capture--hugo-post t))
+
+(defun dm-org-capture--hugo-scratch ()
+  "Return `org-capture' template string for a Hugo scratch post (title only)."
+  (dm-org-capture--hugo-post nil))
 
 (defun dm-org-capture--hugo-marginalia ()
   "Return `org-capture' template string for new Hugo marginalia post.
@@ -135,7 +153,7 @@ See `org-capture-templates' for more information."
 
 (defun dm-org-capture--make-link-entry ()
   "Return an Org capture entry string for a clipboard or prompted URL."
-  (let ((url (dm-org-capture--link--get-clipboard-url))
+  (let ((url (dm-org-capture--get-clipboard-url))
         (title (read-string "Link title: ")))
     (format "** [[%s][%s]]\n%s"
             url title (format-time-string "[%Y-%m-%d %a]"))))
