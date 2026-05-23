@@ -24,37 +24,54 @@ visual wrapping more closely matches the intended `fill-column'."
 
 ;;;###autoload
 (defun dm-wrapping-enable ()
-  "Enable visual wrapping in the current buffer."
+  "Enable visual wrapping in the current buffer.
+Prose buffers delegate to `olivetti-mode'; other buffers use
+`visual-line-mode' with `visual-fill-column-mode'."
   (interactive)
-  (setq-local visual-fill-column-width
-              (+ fill-column dm-visual-fill-column-extra-width))
-  (setq-local visual-fill-column-center-text nil)
   (setq-local word-wrap t)
   (setq-local truncate-lines nil)
-  (visual-line-mode 1)
-  (when (fboundp 'visual-fill-column-mode)
-    (visual-fill-column-mode 1)
-    (visual-fill-column-adjust))
-  (recenter))
+  (cond
+   ((derived-mode-p 'text-mode 'org-mode)
+    (when (fboundp 'olivetti-mode)
+      (olivetti-mode 1)))
+   (t
+    (setq-local visual-fill-column-width
+                (+ fill-column dm-visual-fill-column-extra-width))
+    (setq-local visual-fill-column-center-text nil)
+    (visual-line-mode 1)
+    (when (fboundp 'visual-fill-column-mode)
+      (visual-fill-column-mode 1)
+      (visual-fill-column-adjust))))
+  (when (called-interactively-p 'any) (recenter)))
 
 ;;;###autoload
 (defun dm-wrapping-disable ()
-  "Disable visual wrapping in the current buffer."
+  "Disable visual wrapping in the current buffer.
+Also turns off `olivetti-mode' when active, so centering does not
+persist alongside truncated lines."
   (interactive)
+  (when (bound-and-true-p olivetti-mode)
+    (olivetti-mode -1))
   (visual-line-mode -1)
   (when (fboundp 'visual-fill-column-mode)
     (visual-fill-column-mode -1))
   (setq-local word-wrap nil)
   (setq-local truncate-lines t)
-  (recenter))
+  (when (called-interactively-p 'any) (recenter)))
 
 ;;;###autoload
 (defun dm-wrapping-toggle ()
   "Toggle visual line wrapping in the current buffer."
   (interactive)
-  (if (bound-and-true-p visual-line-mode)
+  (if (or (bound-and-true-p visual-line-mode)
+          (bound-and-true-p olivetti-mode))
       (dm-wrapping-disable)
     (dm-wrapping-enable)))
+
+;; Code buffers default to soft-wrap at `fill-column' so long lines do not
+;; silently cut off at the window edge. The toggle still flips them to
+;; truncated on demand.
+(add-hook 'prog-mode-hook #'dm-wrapping-enable)
 
 (with-eval-after-load 'evil
   (evil-define-operator evil-unfill (beg end type)
@@ -93,6 +110,9 @@ visual wrapping more closely matches the intended `fill-column'."
 ;; Display column number in the modeline.
 (column-number-mode)
 
+;; Slightly wider fringe so the truncation arrow has room to render.
+(fringe-mode 10)
+
 ;;; Package-backed appearance.
 
 (set-face-attribute 'default nil :family "Source Code Pro Ligaturized" :height 170)
@@ -105,7 +125,12 @@ visual wrapping more closely matches the intended `fill-column'."
   (set-face-attribute 'line-number nil
                       :background (face-attribute 'default :background))
   (set-face-attribute 'line-number-current-line nil
-                      :background (face-attribute 'default :background)))
+                      :background (face-attribute 'default :background))
+  ;; Without this the truncation arrow inherits the gruvbox fringe color and
+  ;; reads as background; borrow the keyword color for contrast.
+  (set-face-attribute 'fringe nil
+                      :foreground (face-attribute 'font-lock-keyword-face
+                                                  :foreground)))
 
 (use-package mood-line
   :config

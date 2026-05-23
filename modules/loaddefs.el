@@ -283,9 +283,13 @@ With DISPLAYMODE-P, use display math delimiters.
 ;;; Generated autoloads from dm-ui.el
 
 (autoload 'dm-wrapping-enable "dm-ui"
-"Enable visual wrapping in the current buffer." t)
+"Enable visual wrapping in the current buffer.
+Prose buffers delegate to `olivetti-mode'; other buffers use
+`visual-line-mode' with `visual-fill-column-mode'." t)
 (autoload 'dm-wrapping-disable "dm-ui"
-"Disable visual wrapping in the current buffer." t)
+"Disable visual wrapping in the current buffer.
+Also turns off `olivetti-mode' when active, so centering does not
+persist alongside truncated lines." t)
 (autoload 'dm-wrapping-toggle "dm-ui"
 "Toggle visual line wrapping in the current buffer." t)
 (register-definition-prefixes "dm-ui" '("dm-"))
