@@ -36,7 +36,16 @@
     (cape-wrap-silent #'cape-dabbrev))
 
   (add-hook 'completion-at-point-functions #'dm-cape-dabbrev)
-  (add-hook 'completion-at-point-functions #'cape-file))
+  (add-hook 'completion-at-point-functions #'cape-file)
+
+  ;; Disable in markdown/gfm
+  (defun dm-disable-completion ()
+    "Disable in-buffer completion locally."
+    (setq-local completion-at-point-functions nil)
+    (when (bound-and-true-p corfu-mode)
+      (corfu-mode -1)))
+  (add-hook 'markdown-mode-hook #'dm-disable-completion)
+  (add-hook 'gfm-mode-hook #'dm-disable-completion))
 
 (provide 'dm-capf)
 ;;; dm-capf.el ends here
