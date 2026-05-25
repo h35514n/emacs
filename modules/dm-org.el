@@ -34,7 +34,11 @@
   (org-log-into-drawer t)
   ;; package-specific settings
   (org-latex-packages-alist '(("" "tikz") ("" "amssymb") ("" "amssymb")))
-  (ob-mermaid-cli-path "mmdc"))
+  (ob-mermaid-cli-path "mmdc")
+  :config
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((python . t))))
 
 (use-package evil-org
   ;; Evil keybindings for org: heading navigation, table editing, agenda.
