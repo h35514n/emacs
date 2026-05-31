@@ -201,5 +201,18 @@ and `treesit-auto-langs'."
   :config
   (add-to-list 'auto-mode-alist '("\\.vim\\(rc\\)?\\'" . vimrc-mode)))
 
+;;; ————————————————————————————
+;;; web / ERB
+;;; ————————————————————————————
+
+(use-package web-mode
+  :straight t
+  :mode (("\\.erb\\'"        . web-mode)
+         ("\\.html\\.erb\\'" . web-mode))
+  :custom
+  (web-mode-markup-indent-offset 2)
+  (web-mode-code-indent-offset 2)
+  (web-mode-css-indent-offset 2))
+
 (provide 'dm-langs)
 ;;; dm-langs.el ends here
