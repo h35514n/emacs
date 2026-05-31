@@ -102,7 +102,16 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
   (with-eval-after-load 'magit-commit
     (oset (get 'magit-commit 'transient--prefix) value nil)
     (transient-append-suffix 'magit-commit "c"
-      '("g" "Generate commit message" dm-magit-commit-generate))))
+      '("g" "Generate commit message" dm-magit-commit-generate)))
+  (with-eval-after-load 'magit-diff
+    ;; Clear magit-diff transient state before each commit so that stale rev
+    ;; arguments from a previous diff session don't get passed to
+    ;; magit-commit-diff → magit-diff-staged, causing "unable to read <sha>".
+    (add-hook 'git-commit-setup-hook
+              (lambda ()
+                (when-let* ((obj (get 'magit-diff 'transient--prefix)))
+                  (oset obj value nil)))
+              -50)))
 
 ;; Magit: Pre-warm at idle so the first magit invocation doesn't pay the build cost.
 (run-with-idle-timer 3 nil (lambda () (require 'magit)))
