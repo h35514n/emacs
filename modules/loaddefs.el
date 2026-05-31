@@ -173,6 +173,19 @@ agenda file, cycle as usual by one step in the chosen direction.
 "Cycle forward through `org-agenda-files'." t)
 (autoload 'dm-org-agenda-cycle-prev "dm-org"
 "Cycle backward through `org-agenda-files'." t)
+(autoload 'dm-org-schedule-subtree-items-on-successive-days "dm-org"
+"Set scheduled dates for all headings of the TARGET-LEVEL in subtree, starting from START-DATE.
+
+(fn START-DATE TARGET-LEVEL)" t)
+(autoload 'dm-org-set-effort-on-subtree "dm-org"
+"Bulk set EFFORT property on all subheadings of the current tree.
+
+(fn EFFORT)" t)
+(autoload 'dm-org-sum-effort-from-subtree "dm-org"
+"Sum the Effort estimates of all child headings one level below the current heading,
+and store the total Effort in the current heading's property drawer.
+
+Effort values are assumed to be in standard Org time format, e.g., \"0:30\" or \"2:15\"." t)
 (register-definition-prefixes "dm-org" '("dm-org-"))
 
 

@@ -131,5 +131,57 @@ agenda file, cycle as usual by one step in the chosen direction."
   (interactive)
   (dm-org-agenda-cycle-files -1))
 
+;;;###autoload
+(defun dm-org-schedule-subtree-items-on-successive-days (start-date target-level)
+  "Set scheduled dates for all headings of the TARGET-LEVEL in subtree, starting from START-DATE."
+  (interactive
+   (list
+    (read-string "Start date (YYYY-MM-DD): " (format-time-string "%Y-%m-%d"))
+    (read-string "Target heading level (1-?): " "4")))
+  (let ((current-date start-date))
+    (org-map-entries
+     (lambda ()
+       (message (format "target-level %s" target-level))
+       (when (= (org-current-level) (string-to-number target-level))
+         (org-schedule nil current-date)
+         (setq current-date
+               (format-time-string "%Y-%m-%d"
+                 (time-add (date-to-time current-date)
+                           (days-to-time 1))))))
+     nil 'tree)))
+
+;;;###autoload
+(defun dm-org-set-effort-on-subtree (effort)
+  "Bulk set EFFORT property on all subheadings of the current tree."
+  (interactive "sEffort: ")
+  (org-map-entries
+   (lambda () (org-set-property "EFFORT" effort))
+   nil
+   'tree))
+
+;;;###autoload
+(defun dm-org-sum-effort-from-subtree ()
+  "Sum the Effort estimates of all child headings one level below the current heading,
+and store the total Effort in the current heading's property drawer.
+
+Effort values are assumed to be in standard Org time format, e.g., \"0:30\" or \"2:15\"."
+  (interactive)
+  (require 'org-duration)
+  (save-excursion
+    (org-back-to-heading t)
+    (let* ((current-level (org-current-level))
+           (sum 0))
+      ;; Iterate through all subheadings of current heading
+      (org-map-entries
+       (lambda ()
+         (when (= (org-current-level) (1+ current-level))
+           (let ((effort (org-entry-get (point) "Effort")))
+             (when effort
+               (setq sum (+ sum (org-duration-to-minutes effort)))))))
+       nil 'tree)
+      ;; Write summed effort back to current heading as Org time string
+      (org-entry-put (point) "Effort" (org-duration-from-minutes sum))
+      (message "Set Effort to %s" (org-duration-from-minutes sum)))))
+
 (provide 'dm-org)
 ;;; dm-org.el ends here
