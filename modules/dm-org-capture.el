@@ -86,10 +86,8 @@
                    "%?\n")
                  "\n"))))
 
-(defun dm-org-capture--hugo-post (&optional with-summary)
+(defun dm-org-capture--hugo-draft ()
   "Return `org-capture' template string for a Hugo blog post.
-With non-nil WITH-SUMMARY, also prompt for a summary and emit an
-EXPORT_HUGO_CUSTOM_FRONT_MATTER property carrying :toc and :summary.
 See `org-capture-templates' for more information."
   (save-match-data
     (let* ((date (format-time-string "%Y-%m-%d" (current-time)))
@@ -111,13 +109,28 @@ See `org-capture-templates' for more information."
                          "%?\n"))
                  "\n"))))
 
-(defun dm-org-capture--hugo-draft ()
-  "Return `org-capture' template string for a Hugo draft (title + summary)."
-  (dm-org-capture--hugo-post t))
-
 (defun dm-org-capture--hugo-scratch ()
-  "Return `org-capture' template string for a Hugo scratch post (title only)."
-  (dm-org-capture--hugo-post nil))
+  "Return `org-capture' template string for a Hugo blog post.
+See `org-capture-templates' for more information."
+  (save-match-data
+    (let* ((date (format-time-string "%Y-%m-%d" (current-time)))
+           (timestamp (dm-org-capture--timestamp))
+           (title (concat "Scratch work " (format-time-string "%m/%d" (current-time))))
+           (slug (concat date "-scratch"))
+           (summary (and with-summary (read-from-minibuffer "Summary: " ""))))
+      (mapconcat #'identity
+                 (delq nil
+                       `(,(concat "* " title)
+                         ":PROPERTIES:"
+                         ,(concat ":EXPORT_DATE: " timestamp)
+                         ,(concat ":EXPORT_FILE_NAME: " slug)
+                         ,(concat ":EXPORT_HUGO_SLUG: " slug)
+                         ,(when summary
+                            (concat ":EXPORT_HUGO_CUSTOM_FRONT_MATTER: :toc false :summary "
+                                    summary))
+                         ":END:"
+                         "%?\n"))
+                 "\n"))))
 
 (defun dm-org-capture--hugo-marginalia ()
   "Return `org-capture' template string for new Hugo marginalia post.
