@@ -65,7 +65,7 @@
   ;; Provides sensible evil keybindings for magit, dired, help, ibuffer, etc.
   ;; Must load after evil.
   :after evil
-  :defer 0.3
+  :demand t
   :init
   (setq evil-collection-mode-list
         '(
