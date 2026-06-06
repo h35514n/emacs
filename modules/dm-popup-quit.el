@@ -19,7 +19,8 @@
     "*Messages*"
     "*Warnings*"
     "*compilation*"
-    "*eldoc*")
+    "*eldoc*"
+    "*rspec-compilation*")
   "Exact buffer names that `dm-quit-or-close-popup' should close."
   :type '(repeat string)
   :group 'dm-popups)
