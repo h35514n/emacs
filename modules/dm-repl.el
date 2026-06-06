@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 
-;; Tight feedback-loop coding for Python, Elixir, Rust, JavaScript, and
+;; Tight feedback-loop coding for Python, Elixir, Ruby, Rust, JavaScript, and
 ;; TypeScript.
 ;;
 ;; Emacs packages are installed through straight.el/use-package when this
@@ -13,6 +13,8 @@
 ;; - code-cells: lightweight cell navigation and evaluation.
 ;; - inf-elixir: IEx process interaction.
 ;; - exunit: ExUnit compilation/test commands.
+;; - rspec-mode: RSpec test runner for Ruby.
+;; - inf-ruby: interactive Ruby REPL (irb/pry/rails console).
 ;;
 ;; External tools expected on PATH:
 ;;
@@ -20,6 +22,8 @@
 ;;
 ;; - Elixir: elixir, mix, iex, and either expert, elixir-ls, or
 ;;   language_server.sh for Eglot.
+;;
+;; - Ruby: ruby (for syntax check), irb or pry for REPL.
 ;;
 ;; - Rust: cargo and rust-analyzer; evcxr or evcxr_repl is optional for REPL
 ;;   evaluation.
@@ -51,6 +55,8 @@
   '(python-base-mode-hook
     elixir-mode-hook
     elixir-ts-mode-hook
+    ruby-mode-hook
+    ruby-ts-mode-hook
     rust-mode-hook
     rust-ts-mode-hook
     js-mode-hook
@@ -302,7 +308,15 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-node-eval-region
      :check dm-node-check
      :test dm-node-test
-     :test-all dm-node-test))
+     :test-all dm-node-test)
+    (ruby
+     :modes (ruby-mode ruby-ts-mode)
+     :start-pop dm-ruby-start-or-pop
+     :eval-region dm-ruby-send-region
+     :check dm-ruby-check
+     :test dm-ruby-test-dwim
+     :test-all dm-ruby-test-all
+     :setup dm-ruby-repl-setup))
   "Language-specific REPL, eval, check, test, and setup commands.")
 
 (defun dm-repl-language-spec ()
@@ -405,6 +419,44 @@ MODE is an optional major mode for the REPL buffer."
   (let ((default-directory (dm-repl-project-root))
         (python (or (bound-and-true-p python-shell-interpreter) "python")))
     (compile (format "%s -m pytest" (shell-quote-argument python)))))
+
+(defun dm-ruby-start-or-pop ()
+  "Start or pop to the Ruby REPL."
+  (require 'inf-ruby)
+  (let ((buf (inf-ruby-buffer)))
+    (if buf
+        (switch-to-buffer buf)
+      (inf-ruby-console-auto))))
+
+(defun dm-ruby-send-region (start end)
+  "Send region START END to the inf-ruby REPL."
+  (require 'inf-ruby)
+  (ruby-send-region start end))
+
+(defun dm-ruby-check ()
+  "Run a fast Ruby syntax check on the current file."
+  (unless buffer-file-name
+    (user-error "Current buffer is not visiting a file"))
+  (let ((default-directory (dm-repl-project-root)))
+    (compile (format "ruby -wc %s"
+                     (shell-quote-argument buffer-file-name)))))
+
+(defun dm-ruby-repl-setup ()
+  "Enable Ruby REPL helpers in the current buffer."
+  (when (fboundp 'inf-ruby-minor-mode)
+    (inf-ruby-minor-mode 1)))
+
+(defun dm-ruby-test-dwim ()
+  "Run the spec at point, or the current file if not in a spec."
+  (require 'rspec-mode)
+  (if (and buffer-file-name (string-match-p "_spec\\.rb\\'" buffer-file-name))
+      (rspec-verify-single)
+    (rspec-verify)))
+
+(defun dm-ruby-test-all ()
+  "Run all Ruby specs."
+  (require 'rspec-mode)
+  (rspec-verify-all))
 
 (defun dm-rust-cargo-check ()
   "Run `cargo check' in the current project."
@@ -515,6 +567,18 @@ MODE is an optional major mode for the REPL buffer."
              exunit-verify
              exunit-verify-all
              exunit-verify-single))
+
+(use-package rspec-mode
+  :commands (rspec-verify
+             rspec-verify-single
+             rspec-verify-all))
+
+(use-package inf-ruby
+  :commands (inf-ruby
+             inf-ruby-console-auto
+             inf-ruby-buffer
+             inf-ruby-minor-mode
+             ruby-send-region))
 
 (provide 'dm-repl)
 ;;; dm-repl.el ends here
