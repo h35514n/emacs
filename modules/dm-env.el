@@ -18,6 +18,7 @@
      "GIT_CG_PROVIDER"
      "GOPATH"
      "HEX_HOME"
+     "HOMEBREW_PREFIX"
      "IPYTHONDIR"
      "MANPATH"
      "MISE_DIR"
