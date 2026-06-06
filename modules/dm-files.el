@@ -243,6 +243,20 @@ If the file is not inside the current project, report nil."
       nil)))
 
 ;;;###autoload
+(defun dm-copy-file-project-path-with-line ()
+  "Copy the project-relative path of the current file with the line number.
+
+Format: path/to/file.el:LINE"
+  (interactive)
+  (let* ((file (dm-current-file-or-error))
+         (path (dm-project-relative-file-path file)))
+    (if path
+        (dm-copy-string (format "%s:%d" path (line-number-at-pos))
+                        "project-relative file path with line")
+      (message "nil: file is not under current project root")
+      nil)))
+
+;;;###autoload
 (defun dm-copy-file-path-dwim ()
   "Copy the most useful path for the current buffer file.
 

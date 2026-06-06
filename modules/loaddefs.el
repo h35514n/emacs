@@ -81,6 +81,10 @@ If the file is not under the user's home directory, report nil." t)
 "Copy the current buffer file path relative to the project root.
 
 If the file is not inside the current project, report nil." t)
+(autoload 'dm-copy-file-project-path-with-line "dm-files"
+"Copy the project-relative path of the current file with the line number.
+
+Format: path/to/file.el:LINE" t)
 (autoload 'dm-copy-file-path-dwim "dm-files"
 "Copy the most useful path for the current buffer file.
 
