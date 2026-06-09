@@ -227,6 +227,8 @@ in `dm-quit-or-close-popup-buffer-names' or starts with one of
 "Run the fastest project check for the current language." t)
 (autoload 'dm-repl-test-dwim "dm-repl"
 "Run the nearest or current-buffer test for the current language." t)
+(autoload 'dm-repl-test-buffer "dm-repl"
+"Run all tests in the current buffer for the current language." t)
 (autoload 'dm-repl-test-all "dm-repl"
 "Run all tests for the current language." t)
 (autoload 'dm-repl-local-keybindings "dm-repl"

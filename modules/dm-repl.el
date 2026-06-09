@@ -254,6 +254,11 @@ MODE is an optional major mode for the REPL buffer."
       (exunit-verify-single)
     (exunit-verify)))
 
+(defun dm-elixir-test-buffer ()
+  "Run all ExUnit tests in the current buffer."
+  (require 'exunit)
+  (exunit-verify))
+
 (defun dm-elixir-test-all ()
   "Run all Elixir tests."
   (require 'exunit)
@@ -278,6 +283,7 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-python-eval-region
      :check dm-python-test-buffer
      :test dm-python-test-buffer
+     :test-buffer dm-python-test-buffer
      :test-all dm-python-test-all
      :setup dm-python-repl-setup)
     (elixir
@@ -286,6 +292,7 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-elixir-send-region
      :check dm-elixir-check
      :test dm-elixir-test-dwim
+     :test-buffer dm-elixir-test-buffer
      :test-all dm-elixir-test-all
      :setup dm-elixir-repl-setup)
     (rust
@@ -294,6 +301,7 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-rust-send-region
      :check dm-rust-cargo-check
      :test dm-rust-cargo-test
+     :test-buffer dm-rust-cargo-test
      :test-all dm-rust-cargo-test)
     (typescript
      :modes (typescript-mode typescript-ts-mode tsx-ts-mode)
@@ -301,6 +309,7 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-typescript-send-region
      :check dm-node-check
      :test dm-node-test
+     :test-buffer dm-node-test
      :test-all dm-node-test)
     (javascript
      :modes (js-mode js-ts-mode jsx-ts-mode)
@@ -308,6 +317,7 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-node-eval-region
      :check dm-node-check
      :test dm-node-test
+     :test-buffer dm-node-test
      :test-all dm-node-test)
     (ruby
      :modes (ruby-mode ruby-ts-mode)
@@ -315,6 +325,7 @@ MODE is an optional major mode for the REPL buffer."
      :eval-region dm-ruby-send-region
      :check dm-ruby-check
      :test dm-ruby-test-dwim
+     :test-buffer dm-ruby-test-buffer
      :test-all dm-ruby-test-all
      :setup dm-ruby-repl-setup))
   "Language-specific REPL, eval, check, test, and setup commands.")
@@ -453,6 +464,11 @@ MODE is an optional major mode for the REPL buffer."
       (rspec-verify-single)
     (rspec-verify)))
 
+(defun dm-ruby-test-buffer ()
+  "Run all RSpec examples in the current buffer."
+  (require 'rspec-mode)
+  (rspec-verify))
+
 (defun dm-ruby-test-all ()
   "Run all Ruby specs."
   (require 'rspec-mode)
@@ -491,6 +507,13 @@ MODE is an optional major mode for the REPL buffer."
   (interactive)
   (funcall (dm-repl-command
             :test "No test command configured for %s")))
+
+;;;###autoload
+(defun dm-repl-test-buffer ()
+  "Run all tests in the current buffer for the current language."
+  (interactive)
+  (funcall (dm-repl-command
+            :test-buffer "No test-buffer command configured for %s")))
 
 ;;;###autoload
 (defun dm-repl-test-all ()
