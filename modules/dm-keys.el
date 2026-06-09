@@ -19,6 +19,7 @@
   (leader!
     ;; Top-level
     "SPC" '(consult-buffer          :which-key "consult")
+    "RET" '(recompile               :which-key "compile")
     "*"   '(dm-search-for-this-dwim :which-key "search this")
 
     ;; Agent (claude-code-ide / codex-ide, toggled at runtime via SPC a A)
@@ -92,10 +93,13 @@
     "o f" '(consult-org-agenda     :which-key "find")
     "o A" '(org-cycle-agenda-files :which-key "cycle agenda files")
 
-    ;; Toggle
-    "t"   '(:ignore t          :which-key "toggle")
-    "t c" '(copilot-mode       :which-key "copilot")
-    "t w" '(dm-wrapping-toggle :which-key "word wrap")
+    ;; Toggle / Test
+    "t"   '(:ignore t              :which-key "toggle/test")
+    "t c" '(copilot-mode           :which-key "toggle copilot")
+    "t w" '(dm-wrapping-toggle     :which-key "toggle wrapping")
+    "t t" '(dm-repl-test-dwim      :which-key "test dwim")
+    "t b" '(dm-repl-test-buffer    :which-key "test buffer")
+    "t a" '(dm-repl-test-all       :which-key "test all")
 
     ;; Tabs
     "T"     '(:ignore t                  :which-key "tab")
@@ -122,12 +126,16 @@
     "p k" '(project-kill-buffers       :which-key "kill buffers")
     "p s" '(consult-ripgrep            :which-key "search")
 
-    ;; LSP (eglot)
-    "l"   '(:ignore t                        :which-key "lsp")
-    "l r" '(eglot-rename                     :which-key "rename")
-    "l a" '(eglot-code-actions               :which-key "actions")
+    ;; Language / LSP (eglot, flymake)
+    "l"   '(:ignore t                        :which-key "lsp / flymake")
+    "l r" '(eglot-rename                     :which-key "eglot rename")
+    "l a" '(eglot-code-actions               :which-key "eglot actions")
+    "l k" '(dm-repl-check-dwim               :which-key "syntax check")
     "l e" '(consult-flymake                  :which-key "errors")
-    "l d" '(flymake-show-project-diagnostics :which-key "diagnostics")
+    "l d" '(flymake-show-project-diagnostics :which-key "project diagnostics")
+    "l b" '(flymake-show-buffer-diagnostics  :which-key "buffer diagnostics")
+    "l n" '(flymake-goto-next-error          :which-key "next error")
+    "l p" '(flymake-goto-prev-error          :which-key "prev error")
 
     ;; REPL / tight loop
     "r"   '(:ignore t                  :which-key "repl")
@@ -138,9 +146,6 @@
     "r c" '(dm-repl-eval-cell          :which-key "eval cell")
     "r n" '(dm-repl-next-cell          :which-key "next cell")
     "r p" '(dm-repl-previous-cell      :which-key "prev cell")
-    "r k" '(dm-repl-check-dwim         :which-key "check")
-    "r t" '(dm-repl-test-dwim          :which-key "test dwim")
-    "r a" '(dm-repl-test-all           :which-key "test all")
 
     ;; Windows
     "w"   '(:ignore t                   :which-key "window")
