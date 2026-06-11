@@ -19,7 +19,7 @@
   (leader!
     ;; Top-level
     "SPC" '(consult-buffer          :which-key "consult")
-    "RET" '(recompile               :which-key "compile")
+    "RET" '(project-compile         :which-key "compile")
     "*"   '(dm-search-for-this-dwim :which-key "search this")
 
     ;; Agent (claude-code-ide / codex-ide, toggled at runtime via SPC a A)
