@@ -21,6 +21,9 @@
 ;; Lock files (.#foo) are only useful for multi-user editing; skip them.
 (setq create-lockfiles nil)
 
+;; Render colors in compilation buffer
+(add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
+
 ;; Auto-revert files, avoid polling.
 (setq auto-revert-avoid-polling t)
 
