@@ -164,6 +164,10 @@ process buffers below the selected window.
 
 ;;; Generated autoloads from dm-org.el
 
+(autoload 'dm-org-agenda-save-all-files "dm-org"
+"
+
+(fn &rest _)" t)
 (autoload 'dm-org-agenda-cycle-files "dm-org"
 "Cycle through `org-agenda-files'. Positive ARG moves forward, negative moves backward.
 

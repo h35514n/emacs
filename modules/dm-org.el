@@ -24,7 +24,6 @@
   ;; ORG_HOME is set in env/emacs.sh; fall back to ~/Org.
   (org-directory (or (getenv "ORG_HOME") (expand-file-name "~/Org")))
   (org-default-notes-file (dm-org-file "inbox"))
-  (org-agenda-files (expand-file-name ".agenda-files.el" org-directory))
   ;; Visual preferences.
   (org-startup-indented t)
   (org-hide-leading-stars t)
@@ -35,6 +34,32 @@
   ;; package-specific settings
   (org-latex-packages-alist '(("" "tikz") ("" "amssymb") ("" "amssymb")))
   (ob-mermaid-cli-path "mmdc")
+
+  ;; ported
+  (org-adapt-indentation t)
+  (org-blank-before-new-entry '((heading . nil) (plain-list-item . nil)))
+  (org-catch-invisible-edits 'show-and-error)
+  (org-confirm-babel-evaluate nil)
+  (org-cycle-separator-lines 2)
+  (org-edit-src-content-indentation 0)
+  (org-fontify-quote-and-verse-blocks t)
+  (org-fontify-whole-heading-line t)
+  (org-hide-emphasis-markers t)
+  (org-image-actual-width 500)
+  (org-list-use-circular-motion t)
+  (org-log-done 'time)
+  (org-log-into-drawer t)
+  (org-outline-path-complete-in-steps nil)
+  (org-pretty-entities nil)
+  (org-refile-allow-creating-parent-nodes 'confirm)
+  (org-refile-use-outline-path 'file)
+  (org-src-ask-before-returning-to-edit-buffer nil)
+  (org-src-tab-acts-natively t)
+  (org-src-window-setup 'current-window)
+  (org-startup-folded 'overview)
+  (org-startup-indented t)
+  (org-startup-with-inline-images t)
+  (org-tags-column 0)
   :config
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -66,6 +91,59 @@
                (org-agenda-skip-function
                 '(org-agenda-skip-entry-if 'notregexp "CLOSED:"))))))))
 
+(with-eval-after-load 'org-agenda
+  (setq org-agenda-files (expand-file-name ".agenda-files.el" org-directory)
+        org-agenda-block-separator ?⎯
+        org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp)
+        org-agenda-format-date (lambda (date) (concat "\n" (org-agenda-format-date-aligned date)))
+        org-agenda-restore-windows-after-quit t
+        org-agenda-remove-tags 'prefix
+        org-agenda-skip-deadline-if-done t
+        org-agenda-skip-deadline-prewarning-if-scheduled t
+        org-agenda-skip-scheduled-if-done t
+        org-agenda-span 9
+        org-agenda-start-day "-1d"
+        org-agenda-start-on-weekday nil
+        org-agenda-start-with-log-mode t
+        org-agenda-use-time-grid nil
+        org-agenda-view-columns-initially nil
+        org-agenda-window-setup 'only-window
+        org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %6Effort(Effort){:} %TAGS(Tags) %50ITEM(Task)"
+        org-deadline-warning-days 7
+        org-agenda-prefix-format '((agenda . "  %s%-12t[%5e]%10T ")
+                                   (todo   . "  %-12:c")
+                                   (tags   . "  %-12:c")
+                                   (search . "  %-12:c"))))
+
+;;; ————————————————————————————
+;;; Org agenda buffer save
+;;; ————————————————————————————
+
+;;;###autoload
+(defun dm-org-agenda-save-all-files (&rest _)
+  (interactive)
+  (org-save-all-org-buffers))
+
+;; Save after any agenda action
+(defun dm-org-agenda--save-buffers-advice (&rest _)
+  "Save all Org agenda buffers after an agenda command."
+  (org-save-all-org-buffers))
+
+(with-eval-after-load 'org-agenda
+  (dolist (cmd '(
+                 org-agenda-clock-in
+                 org-agenda-clock-out
+                 org-agenda-deadline
+                 org-agenda-do-date-earlier
+                 org-agenda-do-date-later
+                 org-agenda-priority
+                 org-agenda-schedule
+                 org-agenda-set-effort
+                 org-agenda-set-property
+                 org-agenda-set-tags
+                 org-agenda-todo
+                 ))
+    (advice-add cmd :after #'dm-org-agenda--save-buffers-advice)))
 
 ;;; ————————————————————————————
 ;;; Org agenda cycling
