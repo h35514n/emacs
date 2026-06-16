@@ -67,7 +67,10 @@
 
 (use-package evil-org
   ;; Evil keybindings for org: heading navigation, table editing, agenda.
+  ;; :demand t overrides :hook-implied deferral so the with-eval-after-load
+  ;; 'org-agenda callback is registered before the user first opens the agenda.
   :after (evil org)
+  :demand t
   :hook (org-mode . evil-org-mode)
   :config
   ;; Agenda bindings only matter once `org-agenda' loads, which happens on
@@ -93,7 +96,7 @@ Usable interactively or as :after advice on agenda-mutating commands."
   ;; `M-x org-agenda', at which point `:config' runs. `:custom' settings apply
   ;; at startup, which is harmless since `defcustom' won't clobber them.
   :straight nil
-  :defer t
+  :after (evil org)
   :custom
   (org-agenda-files (expand-file-name ".agenda-files.el" org-directory))
   (org-agenda-block-separator ?⎯)
