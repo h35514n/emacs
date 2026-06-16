@@ -165,7 +165,8 @@ process buffers below the selected window.
 ;;; Generated autoloads from dm-org.el
 
 (autoload 'dm-org-agenda-save-all-files "dm-org"
-"
+"Save all Org buffers.
+Usable interactively or as :after advice on agenda-mutating commands.
 
 (fn &rest _)" t)
 (autoload 'dm-org-agenda-cycle-files "dm-org"

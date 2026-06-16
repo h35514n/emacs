@@ -77,10 +77,48 @@
     (evil-org-agenda-set-keys)))
 
 ;;; ————————————————————————————
-;;; Org agenda custom commands
+;;; Org agenda
 ;;; ————————————————————————————
 
-(with-eval-after-load 'org-agenda
+;;;###autoload
+(defun dm-org-agenda-save-all-files (&rest _)
+  "Save all Org buffers.
+Usable interactively or as :after advice on agenda-mutating commands."
+  (interactive)
+  (org-save-all-org-buffers))
+
+(use-package org-agenda
+  ;; Part of Org (installed via the `org' form above), so don't let straight
+  ;; try to manage it. `:defer t' keeps it lazy: it loads on first
+  ;; `M-x org-agenda', at which point `:config' runs. `:custom' settings apply
+  ;; at startup, which is harmless since `defcustom' won't clobber them.
+  :straight nil
+  :defer t
+  :custom
+  (org-agenda-files (expand-file-name ".agenda-files.el" org-directory))
+  (org-agenda-block-separator ?⎯)
+  (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))
+  (org-agenda-format-date (lambda (date) (concat "\n" (org-agenda-format-date-aligned date))))
+  (org-agenda-restore-windows-after-quit t)
+  (org-agenda-remove-tags 'prefix)
+  (org-agenda-skip-deadline-if-done t)
+  (org-agenda-skip-deadline-prewarning-if-scheduled t)
+  (org-agenda-skip-scheduled-if-done t)
+  (org-agenda-span 9)
+  (org-agenda-start-day "-1d")
+  (org-agenda-start-on-weekday nil)
+  (org-agenda-start-with-log-mode t)
+  (org-agenda-use-time-grid nil)
+  (org-agenda-view-columns-initially nil)
+  (org-agenda-window-setup 'only-window)
+  (org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %6Effort(Effort){:} %TAGS(Tags) %50ITEM(Task)")
+  (org-deadline-warning-days 7)
+  (org-agenda-prefix-format '((agenda . "  %s%-12t[%5e]%10T ")
+                              (todo   . "  %-12:c")
+                              (tags   . "  %-12:c")
+                              (search . "  %-12:c")))
+  :config
+  ;; Custom command: completed tasks in the past week.
   (add-to-list
    'org-agenda-custom-commands
    '("W" "Completed tasks in past week"
@@ -89,49 +127,10 @@
                (org-agenda-start-day "-7d")
                (org-agenda-log-mode-items '(closed clock state))
                (org-agenda-skip-function
-                '(org-agenda-skip-entry-if 'notregexp "CLOSED:"))))))))
+                '(org-agenda-skip-entry-if 'notregexp "CLOSED:")))))))
 
-(with-eval-after-load 'org-agenda
-  (setq org-agenda-files (expand-file-name ".agenda-files.el" org-directory)
-        org-agenda-block-separator ?⎯
-        org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp)
-        org-agenda-format-date (lambda (date) (concat "\n" (org-agenda-format-date-aligned date)))
-        org-agenda-restore-windows-after-quit t
-        org-agenda-remove-tags 'prefix
-        org-agenda-skip-deadline-if-done t
-        org-agenda-skip-deadline-prewarning-if-scheduled t
-        org-agenda-skip-scheduled-if-done t
-        org-agenda-span 9
-        org-agenda-start-day "-1d"
-        org-agenda-start-on-weekday nil
-        org-agenda-start-with-log-mode t
-        org-agenda-use-time-grid nil
-        org-agenda-view-columns-initially nil
-        org-agenda-window-setup 'only-window
-        org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %6Effort(Effort){:} %TAGS(Tags) %50ITEM(Task)"
-        org-deadline-warning-days 7
-        org-agenda-prefix-format '((agenda . "  %s%-12t[%5e]%10T ")
-                                   (todo   . "  %-12:c")
-                                   (tags   . "  %-12:c")
-                                   (search . "  %-12:c"))))
-
-;;; ————————————————————————————
-;;; Org agenda buffer save
-;;; ————————————————————————————
-
-;;;###autoload
-(defun dm-org-agenda-save-all-files (&rest _)
-  (interactive)
-  (org-save-all-org-buffers))
-
-;; Save after any agenda action
-(defun dm-org-agenda--save-buffers-advice (&rest _)
-  "Save all Org agenda buffers after an agenda command."
-  (org-save-all-org-buffers))
-
-(with-eval-after-load 'org-agenda
-  (dolist (cmd '(
-                 org-agenda-clock-in
+  ;; Persist edits made from the agenda by saving after any mutating command.
+  (dolist (cmd '(org-agenda-clock-in
                  org-agenda-clock-out
                  org-agenda-deadline
                  org-agenda-do-date-earlier
@@ -141,9 +140,8 @@
                  org-agenda-set-effort
                  org-agenda-set-property
                  org-agenda-set-tags
-                 org-agenda-todo
-                 ))
-    (advice-add cmd :after #'dm-org-agenda--save-buffers-advice)))
+                 org-agenda-todo))
+    (advice-add cmd :after #'dm-org-agenda-save-all-files)))
 
 ;;; ————————————————————————————
 ;;; Org agenda cycling
