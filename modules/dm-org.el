@@ -85,6 +85,9 @@
 ;;; Org agenda
 ;;; ————————————————————————————
 
+(defun dm-org-agenda-save-all-files--h (&rest _)
+  (org-save-all-org-buffers))
+
 ;;;###autoload
 (defun dm-org-agenda-save-all-files (&rest _)
   "Save all Org buffers.
@@ -146,7 +149,7 @@ Usable interactively or as :after advice on agenda-mutating commands."
                  org-agenda-set-property
                  org-agenda-set-tags
                  org-agenda-todo))
-    (advice-add cmd :after #'dm-org-agenda-save-all-files)))
+    (advice-add cmd :after #'dm-org-agenda-save-all-files--h)))
 
 ;;; ————————————————————————————
 ;;; Org agenda cycling
