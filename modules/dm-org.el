@@ -35,7 +35,6 @@
   (org-latex-packages-alist '(("" "tikz") ("" "amssymb") ("" "amssymb")))
   (ob-mermaid-cli-path "mmdc")
 
-  ;; ported
   (org-adapt-indentation t)
   (org-blank-before-new-entry '((heading . nil) (plain-list-item . nil)))
   (org-catch-invisible-edits 'show-and-error)
@@ -51,6 +50,9 @@
   (org-log-into-drawer t)
   (org-outline-path-complete-in-steps nil)
   (org-pretty-entities nil)
+  (org-priority-highest ?A)
+  (org-priority-lowest  ?Z)
+  (org-priority-default ?Z)
   (org-refile-allow-creating-parent-nodes 'confirm)
   (org-refile-use-outline-path 'file)
   (org-src-ask-before-returning-to-edit-buffer nil)
