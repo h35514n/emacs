@@ -36,6 +36,7 @@
   (ob-mermaid-cli-path "mmdc")
 
   (org-adapt-indentation t)
+  (org-archive-location "archive/%s_archive::")
   (org-blank-before-new-entry '((heading . nil) (plain-list-item . nil)))
   (org-catch-invisible-edits 'show-and-error)
   (org-confirm-babel-evaluate nil)
