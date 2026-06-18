@@ -202,11 +202,15 @@ This never prompts for a project."
 (defun dm-file-open ()
   "Open the current buffer's file with the default or configured app.
 
+In `dired-mode', opens the file at point instead.
 Uses `dm-file-open-apps' to choose an app by filename regexp.
 Falls back to macOS `open'."
   (interactive)
   (dm-open-file-with-default-or-configured-app
-   (dm-current-file-or-error)))
+   (if (derived-mode-p 'dired-mode)
+       (or (dired-get-filename nil t)
+           (user-error "No file at point"))
+     (dm-current-file-or-error))))
 
 ;;;###autoload
 (defun dm-copy-file-path ()

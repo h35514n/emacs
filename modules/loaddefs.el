@@ -69,6 +69,7 @@ This never prompts for a project." t)
 (autoload 'dm-file-open "dm-files"
 "Open the current buffer's file with the default or configured app.
 
+In `dired-mode', opens the file at point instead.
 Uses `dm-file-open-apps' to choose an app by filename regexp.
 Falls back to macOS `open'." t)
 (autoload 'dm-copy-file-path "dm-files"
