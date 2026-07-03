@@ -122,7 +122,7 @@ Usable interactively or as :after advice on agenda-mutating commands."
   (org-agenda-window-setup 'only-window)
   (org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %6Effort(Effort){:} %TAGS(Tags) %50ITEM(Task)")
   (org-deadline-warning-days 7)
-  (org-agenda-prefix-format '((agenda . "  %s%-12t[%5e]%10T ")
+  (org-agenda-prefix-format '((agenda . "[%4e] ")
                               (todo   . "  %-12:c")
                               (tags   . "  %-12:c")
                               (search . "  %-12:c")))
