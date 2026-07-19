@@ -51,5 +51,9 @@
   (copy-as-format-include-metadata-comment t)
   (copy-as-format-github-folded-prompt-for-summary t))
 
+(use-package wc-mode
+  :straight (:type git :host github :repo "bnbeckwith/wc-mode")
+  :hook ((text-mode . wc-mode)))
+
 (provide 'dm-editing)
 ;;; dm-editing.el ends here
