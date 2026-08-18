@@ -32,9 +32,7 @@
 (autoload 'dm-search-for-this-dwim "dm-completion"
 "Search the current visual selection, or symbol-at-point if no selection.
 Search in the current project if one is active, otherwise search the current
-directory hierarchy.
-
-(fn &optional BEG END)" t)
+directory hierarchy." t)
 
 
 ;;; Generated autoloads from dm-core.el

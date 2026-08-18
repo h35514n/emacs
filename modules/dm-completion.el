@@ -77,14 +77,15 @@
   (setq consult-narrow-key "?"))
 
 ;;;###autoload
-(defun dm-search-for-this-dwim (&optional beg end)
+(defun dm-search-for-this-dwim ()
   "Search the current visual selection, or symbol-at-point if no selection.
 Search in the current project if one is active, otherwise search the current
 directory hierarchy."
-  (interactive "r")
+  (interactive)
   (let* ((selection (when (use-region-p)
                       (string-trim
-                       (buffer-substring-no-properties beg end))))
+                       (buffer-substring-no-properties
+                        (region-beginning) (region-end)))))
          (symbol (when-let* ((symbol (thing-at-point 'symbol t)))
                    (string-trim symbol)))
          (query (or (and selection (not (string-empty-p selection)) selection)
