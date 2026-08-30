@@ -351,6 +351,11 @@ otherwise kill Emacs." t)
 
 (register-definition-prefixes "dm-org-hugo" '("dm-"))
 
+
+
+;;; Generated autoloads from dm-org-repeat-days.el
+
+(register-definition-prefixes "dm-org-repeat-days" '("dm-org-repeat-days-"))
 
 ;;; End of scraped data
 
