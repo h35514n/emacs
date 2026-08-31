@@ -378,6 +378,27 @@ Must be called in an Org agenda buffer; the figures describe what that buffer
 shows, including entries currently hidden by an agenda filter.
 
 (fn DATE)")
+(autoload 'dm-org-agenda-day-plan "dm-org-agenda-capacity"
+"Return the interval plan for DATE as a plist, read from the current agenda.
+
+A superset of `dm-org-agenda-day-load', adding the wall-clock view:
+
+  :window      the working day from `dm-org-daily-workday', or nil
+  :blocks      fixed-time footprints, merged, in minutes from midnight
+  :runs        the free stretches of :window left once :blocks are removed
+  :placements  (MARKER START . END) for each flexible task first-fit into :runs
+  :unplaced    markers of flexible tasks no single run could hold
+  :fits        non-nil when every flexible task was placed; nil when the
+               weekday has no window configured
+
+A day can be within capacity and still not fit: 5:30 of work against 6:00 of
+capacity fails if a meeting splits the day into runs of 3:00 and 3:30 and no
+run can take two two-hour tasks.  That is the case :fits reports and the
+capacity total cannot.
+
+Must be called in an Org agenda buffer.
+
+(fn DATE)")
 (register-definition-prefixes "dm-org-agenda-capacity" '("dm-org-"))
 
 

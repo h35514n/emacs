@@ -56,6 +56,86 @@
     (should (= day (dm-org-agenda-capacity--absolute day)))))
 
 ;;; ————————————————————————————
+;;; Intervals
+;;; ————————————————————————————
+
+(ert-deftest dm-org-agenda-capacity--hhmm-to-minutes/converts-military-time ()
+  (should (= 0 (dm-org-agenda-capacity--hhmm-to-minutes 0)))
+  (should (= 540 (dm-org-agenda-capacity--hhmm-to-minutes 900)))
+  (should (= 1230 (dm-org-agenda-capacity--hhmm-to-minutes 2030)))
+  (should (= 1439 (dm-org-agenda-capacity--hhmm-to-minutes 2359))))
+
+(ert-deftest dm-org-agenda-capacity--merge-intervals/sorts-and-coalesces ()
+  (should (equal '((60 . 120) (180 . 240))
+                 (dm-org-agenda-capacity--merge-intervals '((180 . 240) (60 . 120)))))
+  ;; Overlapping, touching and nested all collapse to one.
+  (should (equal '((60 . 180))
+                 (dm-org-agenda-capacity--merge-intervals '((60 . 120) (90 . 180)))))
+  (should (equal '((60 . 180))
+                 (dm-org-agenda-capacity--merge-intervals '((60 . 120) (120 . 180)))))
+  (should (equal '((60 . 180))
+                 (dm-org-agenda-capacity--merge-intervals '((60 . 180) (90 . 120)))))
+  (should-not (dm-org-agenda-capacity--merge-intervals nil)))
+
+(ert-deftest dm-org-agenda-capacity--merge-intervals/does-not-mutate-input ()
+  (let* ((blocks (list (cons 180 240) (cons 60 120)))
+         (before (copy-tree blocks)))
+    (dm-org-agenda-capacity--merge-intervals blocks)
+    (should (equal before blocks))))
+
+(ert-deftest dm-org-agenda-capacity--free-runs/no-blocks-is-the-whole-window ()
+  (should (equal '((540 . 1080))
+                 (dm-org-agenda-capacity--free-runs '(540 . 1080) nil))))
+
+(ert-deftest dm-org-agenda-capacity--free-runs/splits-around-a-block ()
+  (should (equal '((540 . 660) (780 . 1080))
+                 (dm-org-agenda-capacity--free-runs '(540 . 1080) '((660 . 780))))))
+
+(ert-deftest dm-org-agenda-capacity--free-runs/blocks-at-the-edges ()
+  (should (equal '((660 . 1080))
+                 (dm-org-agenda-capacity--free-runs '(540 . 1080) '((540 . 660)))))
+  (should (equal '((540 . 960))
+                 (dm-org-agenda-capacity--free-runs '(540 . 1080) '((960 . 1080)))))
+  (should-not (dm-org-agenda-capacity--free-runs '(540 . 1080) '((540 . 1080)))))
+
+(ert-deftest dm-org-agenda-capacity--free-runs/ignores-blocks-outside-the-window ()
+  ;; A 20:30 appointment does not shorten a nine-to-five.
+  (should (equal '((540 . 1080))
+                 (dm-org-agenda-capacity--free-runs '(540 . 1080) '((1230 . 1290)))))
+  ;; One overhanging an edge is clipped rather than dropped.
+  (should (equal '((600 . 1080))
+                 (dm-org-agenda-capacity--free-runs '(540 . 1080) '((420 . 600))))))
+
+(ert-deftest dm-org-agenda-capacity--fit/places-in-order ()
+  (let ((result (dm-org-agenda-capacity--fit '((540 . 1080))
+                                             '((a . 120) (b . 60)))))
+    (should (equal '((a 540 . 660) (b 660 . 720)) (car result)))
+    (should-not (cdr result))))
+
+(ert-deftest dm-org-agenda-capacity--fit/fragmentation-defeats-a-fitting-total ()
+  ;; 5:30 of work into 6:00 of free time that no run can hold two of.
+  (let ((result (dm-org-agenda-capacity--fit '((540 . 720) (900 . 1080))
+                                             '((a . 120) (b . 120) (c . 90)))))
+    (should (equal '((a 540 . 660) (b 900 . 1020)) (car result)))
+    (should (equal '(c) (cdr result)))))
+
+(ert-deftest dm-org-agenda-capacity--fit/task-larger-than-any-run ()
+  (let ((result (dm-org-agenda-capacity--fit '((540 . 600)) '((a . 120)))))
+    (should-not (car result))
+    (should (equal '(a) (cdr result)))))
+
+(ert-deftest dm-org-agenda-capacity--fit/no-runs-places-nothing ()
+  (let ((result (dm-org-agenda-capacity--fit nil '((a . 60)))))
+    (should-not (car result))
+    (should (equal '(a) (cdr result)))))
+
+(ert-deftest dm-org-agenda-capacity--fit/does-not-mutate-the-runs ()
+  (let* ((runs (list (cons 540 1080)))
+         (before (copy-tree runs)))
+    (dm-org-agenda-capacity--fit runs '((a . 120)))
+    (should (equal before runs))))
+
+;;; ————————————————————————————
 ;;; Formatting
 ;;; ————————————————————————————
 
@@ -149,7 +229,8 @@ adds the \"Closed:\" lines the accounting has to ignore."
                (org-agenda-window-setup 'current-window)
                (org-agenda-sticky nil)
                (org-deadline-warning-days 7)
-               (dm-org-daily-capacity '((1 . 360) (4 . 360))))
+               (dm-org-daily-capacity '((1 . 360) (4 . 360)))
+               (dm-org-daily-workday '((1 . (540 . 1080)) (4 . (540 . 1080)))))
            (save-window-excursion
              (org-agenda-list nil "2026-08-31" 7))
            (with-current-buffer org-agenda-buffer-name ,@body))
@@ -229,6 +310,59 @@ adds the \"Closed:\" lines the accounting has to ignore."
       ;; Thursday is within capacity and keeps the date header's own face.
       (should (equal "3:00 / 6:00" (car thursday)))
       (should-not (eq 'dm-org-agenda-capacity-over (cdr thursday))))))
+
+(ert-deftest dm-org-agenda-capacity-annotate/marks-a-day-that-does-not-fit ()
+  (dm-org-agenda-capacity-tests--with-agenda
+    ;; 4:30 of flexible work against 4:00 of window but 6:00 of capacity: the
+    ;; arithmetic is fine and the clock is not.
+    (let* ((dm-org-daily-workday '((1 . (540 . 780))))
+           (_ (dm-org-agenda-capacity-annotate-h))
+           (monday (cdr (assoc "Monday     31 August 2026 W36"
+                               (dm-org-agenda-capacity-tests--annotations)))))
+      (should (equal "5:00 / 6:00  TIGHT" (car monday)))
+      (should (eq 'dm-org-agenda-capacity-tight (cdr monday))))))
+
+(ert-deftest dm-org-agenda-capacity-annotate/over-outranks-tight ()
+  (dm-org-agenda-capacity-tests--with-agenda
+    ;; Both conditions hold; only the more serious one is reported.
+    (let* ((dm-org-daily-capacity '((1 . 240)))
+           (dm-org-daily-workday '((1 . (540 . 780))))
+           (_ (dm-org-agenda-capacity-annotate-h))
+           (monday (cdr (assoc "Monday     31 August 2026 W36"
+                               (dm-org-agenda-capacity-tests--annotations)))))
+      (should (equal "5:00 / 4:00  OVER 1:00" (car monday)))
+      (should (eq 'dm-org-agenda-capacity-over (cdr monday))))))
+
+(ert-deftest dm-org-agenda-capacity-annotate/no-window-means-no-fit-check ()
+  (dm-org-agenda-capacity-tests--with-agenda
+    (let* ((dm-org-daily-workday nil)
+           (_ (dm-org-agenda-capacity-annotate-h))
+           (monday (cdr (assoc "Monday     31 August 2026 W36"
+                               (dm-org-agenda-capacity-tests--annotations)))))
+      ;; Same work, no window configured: nothing to fail to fit.
+      (should (equal "5:00 / 6:00" (car monday)))
+      (should-not (eq 'dm-org-agenda-capacity-tight (cdr monday))))))
+
+(ert-deftest dm-org-agenda-day-plan/reports-runs-and-fit ()
+  (dm-org-agenda-capacity-tests--with-agenda
+    (let ((plan (dm-org-agenda-day-plan '(8 31 2026))))
+      (should (equal '(540 . 1080) (plist-get plan :window)))
+      ;; The 20:30 fixed item lies outside the window and reserves nothing,
+      ;; so the day is one unbroken run despite having fixed work on it.
+      (should (equal '((1230 . 1260)) (plist-get plan :blocks)))
+      (should (equal '((540 . 1080)) (plist-get plan :runs)))
+      (should (plist-get plan :fits))
+      (should-not (plist-get plan :unplaced))
+      ;; The arithmetic keys still read as they did before the plan existed.
+      (should (= 300 (plist-get plan :total))))))
+
+(ert-deftest dm-org-agenda-day-plan/fixed-work-carves-up-the-window ()
+  (dm-org-agenda-capacity-tests--with-agenda
+    ;; Widen the window to swallow the 20:30 appointment and it starts to bite.
+    (let ((dm-org-daily-workday '((1 . (540 . 1320)))))
+      (let ((plan (dm-org-agenda-day-plan '(8 31 2026))))
+        (should (equal '((1230 . 1260)) (plist-get plan :blocks)))
+        (should (equal '((540 . 1230) (1260 . 1320)) (plist-get plan :runs)))))))
 
 (ert-deftest dm-org-agenda-capacity-annotate/is-idempotent ()
   (dm-org-agenda-capacity-tests--with-agenda
