@@ -96,6 +96,22 @@ Usable interactively or as :after advice on agenda-mutating commands."
   (interactive)
   (org-save-all-org-buffers))
 
+(defun dm-org-column-display-value (column-title value)
+  (cond
+   ;; Hide the default priority.
+   ((string= column-title "Pri")
+    (if (string= value (char-to-string org-priority-default))
+        ""
+      value))
+   ;; For scheduled timestamps, display only the time.
+   ((and (string= column-title "Sched")
+         value)
+    (if (string-match "\\b\\([0-9]\\{1,2\\}:[0-9]\\{2\\}\\)\\b" value)
+        (match-string 1 value)
+      ""))
+   ;; Don't modify other columns.
+   (t value)))
+
 (use-package org-agenda
   ;; Part of Org (installed via the `org' form above), so don't let straight
   ;; try to manage it. `:defer t' keeps it lazy: it loads on first
@@ -118,11 +134,17 @@ Usable interactively or as :after advice on agenda-mutating commands."
   (org-agenda-start-on-weekday nil)
   (org-agenda-start-with-log-mode t)
   (org-agenda-use-time-grid nil)
+  (org-agenda-time-grid '((daily today require-timed)
+                          (800 1000 1200 1400 1600 1800 2000)
+                          ""
+                          ""))
   (org-agenda-view-columns-initially nil)
   (org-agenda-window-setup 'only-window)
-  (org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %6Effort(Effort){:} %TAGS(Tags) %50ITEM(Task)")
+  (org-sort-agenda-notime-is-late nil)
+  (org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %SCHEDULED(Sched) %6Effort(Effort){:} %50ITEM(Task)")
+  (org-columns-modify-value-for-display-function #'dm-org-column-display-value)
   (org-deadline-warning-days 7)
-  (org-agenda-prefix-format '((agenda . "[%4e] ")
+  (org-agenda-prefix-format '((agenda . "[%4e] %5t ")
                               (todo   . "  %-12:c")
                               (tags   . "  %-12:c")
                               (search . "  %-12:c")))
