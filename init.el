@@ -38,6 +38,8 @@
 (require 'dm-org-capture)
 (require 'dm-org-repeat-days)
 (require 'dm-org-agenda-capacity)
+(require 'dm-org-persist)
+(require 'dm-org-agenda-persist)
 (require 'dm-langs)
 (require 'dm-keys)
 

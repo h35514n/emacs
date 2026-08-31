@@ -379,6 +379,64 @@ shows, including entries currently hidden by an agenda filter.
 
 (fn DATE)")
 (register-definition-prefixes "dm-org-agenda-capacity" '("dm-org-"))
+
+
+
+;;; Generated autoloads from dm-org-agenda-persist.el
+
+(register-definition-prefixes "dm-org-agenda-persist" '("dm-org-agenda-persist-"))
+
+
+;;; Generated autoloads from dm-org-agenda-plan.el
+
+(autoload 'dm-org-agenda-pack-day "dm-org-agenda-plan"
+"Propose clock times for the flexible work on the agenda day at point.
+
+Fixed-time work is subtracted from the day's window in `dm-org-daily-workday'
+and the flexible work is first-fit into what is left, in the order the agenda
+lists it.  With a prefix argument WHOLE-SPAN, do this for every day the agenda
+shows.
+
+Packing settles rather than churns: what it places acquires a clock time and
+so becomes fixed work, which a later pack builds around instead of moving.
+To reshuffle a day, unpack it first with `dm-org-agenda-unpack-day'.
+
+Nothing is written: the proposal opens in a preview buffer to be applied with
+`dm-org-agenda-plan-apply' or discarded.
+
+(fn &optional WHOLE-SPAN)" '(org-agenda-mode))
+(autoload 'dm-org-agenda-spill-overflow "dm-org-agenda-plan"
+"Propose moving flexible work off the agenda day at point until it fits.
+
+A day needs shedding when it is over capacity or when its flexible work will
+not fit the free runs around its fixed-time work.  Work is shed from the end
+of the agenda's own order, so what the agenda ranks lowest moves first, onto
+the earliest later day with both capacity and a run long enough.
+
+With a prefix argument WHOLE-SPAN, consider every day the agenda shows.
+Target days are always drawn from the whole agenda, which is therefore the
+horizon: nothing beyond the agenda's span can be reasoned about from the
+buffer alone.
+
+Nothing is written; the proposal opens in a preview buffer.
+
+(fn &optional WHOLE-SPAN)" '(org-agenda-mode))
+(autoload 'dm-org-agenda-unpack-day "dm-org-agenda-plan"
+"Restore the timestamps this module rewrote on the agenda day at point.
+
+Only entries carrying a DM_PACKED property are touched, and each is restored
+to the value recorded there verbatim.  With a prefix argument WHOLE-SPAN, do
+this for every day the agenda shows.
+
+Nothing is written; the proposal opens in a preview buffer.
+
+(fn &optional WHOLE-SPAN)" '(org-agenda-mode))
+(register-definition-prefixes "dm-org-agenda-plan" '("dm-org-agenda-plan-"))
+
+
+;;; Generated autoloads from dm-org-persist.el
+
+(register-definition-prefixes "dm-org-persist" '("dm-org-"))
 
 ;;; End of scraped data
 
