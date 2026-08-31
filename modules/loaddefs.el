@@ -356,6 +356,29 @@ otherwise kill Emacs." t)
 ;;; Generated autoloads from dm-org-repeat-days.el
 
 (register-definition-prefixes "dm-org-repeat-days" '("dm-org-repeat-days-"))
+
+
+;;; Generated autoloads from dm-org-agenda-capacity.el
+
+(autoload 'dm-org-agenda-day-load "dm-org-agenda-capacity"
+"Return the planned load for DATE as a plist, read from the current agenda.
+
+DATE is an absolute day number or a Gregorian date (MONTH DAY YEAR).  The
+result is
+
+    (:capacity 360 :fixed 90 :flexible 240 :total 330 :remaining 30
+     :unestimated 1)
+
+in minutes, where :fixed is work whose timestamp carries a clock time,
+:flexible is work scheduled to a bare date, and :unestimated counts entries
+that would have counted but have no EFFORT.  :capacity and :remaining are nil
+when the weekday has no entry in `dm-org-daily-capacity'.
+
+Must be called in an Org agenda buffer; the figures describe what that buffer
+shows, including entries currently hidden by an agenda filter.
+
+(fn DATE)")
+(register-definition-prefixes "dm-org-agenda-capacity" '("dm-org-"))
 
 ;;; End of scraped data
 

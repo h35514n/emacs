@@ -37,6 +37,7 @@
 (require 'dm-org-hugo)
 (require 'dm-org-capture)
 (require 'dm-org-repeat-days)
+(require 'dm-org-agenda-capacity)
 (require 'dm-langs)
 (require 'dm-keys)
 
