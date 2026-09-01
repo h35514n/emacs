@@ -91,6 +91,7 @@
     "o a" '(org-agenda             :which-key "agenda")
     "o c" '(org-capture            :which-key "capture")
     "o f" '(consult-org-agenda     :which-key "find")
+    "o p" '(dm-org-persist-pull    :which-key "pull")
     "o A" '(org-cycle-agenda-files :which-key "cycle agenda files")
 
     ;; Toggle / Test

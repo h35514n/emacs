@@ -458,6 +458,7 @@ Nothing is written; the proposal opens in a preview buffer.
 ;;; Generated autoloads from dm-org-persist.el
 
 (register-definition-prefixes "dm-org-persist" '("dm-org-"))
+
 
 ;;; End of scraped data
 

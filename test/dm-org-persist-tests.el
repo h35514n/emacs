@@ -179,6 +179,8 @@ signing settings cannot leak into the suite."
           (dm-org-persist--repository nil)
           (dm-org-persist--events nil)
           (dm-org-persist--timer nil)
+          (dm-org-persist--pull-process nil)
+          (dm-org-persist--pull-head nil)
           (dm-org-persist-enabled t)
           (dm-org-persist-commit-metadata t)
           (dm-org-persist-sign-fallback t)
@@ -484,6 +486,156 @@ signing settings cannot leak into the suite."
             (dm-org-persist-push)
             (should dm-org-persist--push-again)
             (should (eq standing dm-org-persist--push-process)))
+        (delete-process standing)))))
+
+;;; ————————————————————————————
+;;; Pulling
+;;;
+;;; These run against a real bare remote, and a second clone stands in for the
+;;; other machine.  What is under test is mostly the interaction with git --
+;;; whether `--autostash' returns an unmanaged edit to the working tree,
+;;; whether the rebase really does replay local work on top of what arrived --
+;;; so there would be nothing left to learn from mocking git out.
+;;; ————————————————————————————
+
+(defmacro dm-org-persist-tests--with-upstream (&rest body)
+  "Run BODY with `repo' on a branch tracking a bare `remote'."
+  (declare (indent 0) (debug t))
+  `(dm-org-persist-tests--with-repo
+     (let ((remote (file-name-as-directory
+                    (file-truename (make-temp-file "dm-org-persist-remote-" t)))))
+       (unwind-protect
+           (progn
+             (dm-org-persist--git remote "init" "--quiet" "--bare" "--initial-branch=main")
+             (dm-org-persist--git repo "remote" "add" "origin" remote)
+             (dm-org-persist--git repo "push" "--quiet" "--set-upstream" "origin" "main")
+             ,@body)
+         (delete-directory remote t)))))
+
+(defun dm-org-persist-tests--await-pull (&optional seconds)
+  "Block until the pull finishes, or SECONDS elapse."
+  (let ((deadline (+ (float-time) (or seconds 20))))
+    (while (and (process-live-p dm-org-persist--pull-process)
+                (< (float-time) deadline))
+      (accept-process-output nil 0.05))
+    (while (and dm-org-persist--pull-process (< (float-time) deadline))
+      (accept-process-output nil 0.05))))
+
+(defun dm-org-persist-tests--advance-remote (remote relative contents message)
+  "Commit CONTENTS at RELATIVE onto REMOTE from a scratch clone.
+
+Stands in for the same repository being edited on another machine."
+  (let ((clone (file-name-as-directory
+                (file-truename (make-temp-file "dm-org-persist-clone-" t)))))
+    (unwind-protect
+        (progn
+          (dm-org-persist--git clone "clone" "--quiet" remote ".")
+          (dm-org-persist-tests--write clone relative contents)
+          (dm-org-persist--git clone "add" "--all")
+          (dm-org-persist--git clone "commit" "--quiet" "-m" message)
+          (dm-org-persist--git clone "push" "--quiet" "origin" "main"))
+      (delete-directory clone t))))
+
+(defun dm-org-persist-tests--contents (repo relative)
+  "Return the contents of RELATIVE inside REPO."
+  (with-temp-buffer
+    (insert-file-contents (expand-file-name relative repo))
+    (buffer-string)))
+
+(ert-deftest dm-org-persist-pull/brings-in-an-upstream-commit ()
+  (dm-org-persist-tests--with-upstream
+    (dm-org-persist-tests--advance-remote
+     remote "org/notes.org" "* Written on the laptop\n" "Add notes")
+    (let ((before (dm-org-persist-tests--commits repo)))
+      (dm-org-persist-pull)
+      (dm-org-persist-tests--await-pull)
+      (should (= (1+ before) (dm-org-persist-tests--commits repo)))
+      (should (file-exists-p (expand-file-name "org/notes.org" repo))))))
+
+(ert-deftest dm-org-persist-pull/replays-local-commits-on-top-of-upstream ()
+  ;; Rebase, not merge: local work ends up on top of what arrived, and the
+  ;; history stays linear.  Two machines editing the same agenda would
+  ;; otherwise accumulate a merge commit per sync.
+  (dm-org-persist-tests--with-upstream
+    (dm-org-persist-tests--write repo "org/tasks.org" "* DONE Water plants\n")
+    (dm-org-persist--commit repo '("org/tasks.org") "Mark it done")
+    (dm-org-persist-tests--advance-remote
+     remote "org/notes.org" "* Written on the laptop\n" "Add notes")
+    (dm-org-persist-pull)
+    (dm-org-persist-tests--await-pull)
+    (should (equal "Mark it done"
+                   (dm-org-persist-tests--run repo "log" "-1" "--format=%s")))
+    (should (equal "Add notes"
+                   (dm-org-persist-tests--run repo "log" "-1" "--format=%s" "HEAD~1")))
+    (should (string-empty-p
+             (dm-org-persist-tests--run repo "log" "--merges" "--format=%H")))))
+
+(ert-deftest dm-org-persist-pull/leaves-unmanaged-changes-in-the-working-tree ()
+  ;; The Org repository is almost never clean, and what is dirty is usually
+  ;; something this module does not manage.  `--autostash' has to give it back.
+  (dm-org-persist-tests--with-upstream
+    (dm-org-persist-tests--advance-remote
+     remote "org/notes.org" "* Written on the laptop\n" "Add notes")
+    (dm-org-persist-tests--write repo "unrelated.txt" "edited while pulling\n")
+    (dm-org-persist-pull)
+    (dm-org-persist-tests--await-pull)
+    (should (file-exists-p (expand-file-name "org/notes.org" repo)))
+    (should (equal "unrelated.txt" (dm-org-persist-tests--unstaged repo)))
+    (should (equal "edited while pulling\n"
+                   (dm-org-persist-tests--contents repo "unrelated.txt")))
+    ;; A stash left behind would mean the pop failed and the edit is only
+    ;; recoverable by hand.
+    (should (string-empty-p (dm-org-persist-tests--run repo "stash" "list")))))
+
+(ert-deftest dm-org-persist-pull/commits-queued-events-before-rebasing ()
+  ;; A mutation made moments before the pull belongs in history as its own
+  ;; commit, not inside the autostash -- and the push it would normally
+  ;; trigger has to wait until the rebase that rewrites it is done.
+  (dm-org-persist-tests--with-upstream
+    (dm-org-persist-tests--advance-remote
+     remote "org/notes.org" "* Written on the laptop\n" "Add notes")
+    (dm-org-persist-tests--write repo "org/tasks.org" "* DONE Water plants\n")
+    (let ((before (dm-org-persist-tests--commits repo))
+          (dm-org-git-auto-push t)
+          (dm-org-git-remote "origin"))
+      (dm-org-persist (list :subject "Mark \"Water plants\" DONE"
+                            :data '((type . "todo"))))
+      (dm-org-persist-pull)
+      ;; Flushed synchronously, before a single git process was started...
+      (should-not dm-org-persist--events)
+      ;; ...and its push held back rather than raced against the rebase.
+      (should-not dm-org-persist--push-process)
+      (dm-org-persist-tests--await-pull)
+      (dm-org-persist-tests--await-push)
+      ;; The local commit, plus the one that came from upstream.
+      (should (= (+ 2 before) (dm-org-persist-tests--commits repo)))
+      (should (equal "Mark \"Water plants\" DONE"
+                     (dm-org-persist-tests--run repo "log" "-1" "--format=%s")))
+      ;; Deferred, not dropped: the remote has it once the rebase is done.
+      (should (equal (dm-org-persist-tests--run repo "rev-parse" "HEAD")
+                     (dm-org-persist-tests--run remote "rev-parse" "main"))))))
+
+(ert-deftest dm-org-persist-pull/refuses-while-a-rebase-is-in-progress ()
+  (dm-org-persist-tests--with-upstream
+    (make-directory (expand-file-name ".git/rebase-merge" repo) t)
+    (cl-letf (((symbol-function 'display-warning) #'ignore))
+      (dm-org-persist-pull))
+    (should-not dm-org-persist--pull-process)))
+
+(ert-deftest dm-org-persist-pull/refuses-a-branch-with-no-upstream ()
+  (dm-org-persist-tests--with-repo
+    (should-not (dm-org-persist--upstream-p repo))
+    (dm-org-persist-pull)
+    (should-not dm-org-persist--pull-process)))
+
+(ert-deftest dm-org-persist-pull/refuses-while-a-push-is-in-flight ()
+  ;; The rebase would rewrite the very commits the push is uploading.
+  (dm-org-persist-tests--with-upstream
+    (let ((standing (start-process "dm-org-persist-tests-sleep" nil "sleep" "30")))
+      (unwind-protect
+          (let ((dm-org-persist--push-process standing))
+            (dm-org-persist-pull)
+            (should-not dm-org-persist--pull-process))
         (delete-process standing)))))
 
 (provide 'dm-org-persist-tests)

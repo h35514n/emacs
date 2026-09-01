@@ -68,13 +68,24 @@
 ;; repository root is typically an ancestor of `org-directory' and holds
 ;; unrelated work.  `git commit' is likewise given the pathspec, so a change
 ;; someone staged by hand cannot be swept into an automated commit.
+;;
+;; The inward direction:
+;;
+;; `dm-org-persist-pull' is the one command here that no event drives.  It
+;; exists because the same reasoning that makes commits automatic makes a
+;; hand-rolled pull awkward: the working tree is almost never clean, and there
+;; may be a mutation still sitting in the debounce queue.  So it commits what
+;; is queued first, with the auto-push suppressed, and only then rebases -- a
+;; pending edit belongs in history as a commit, not inside an autostash.
 
 ;;; Code:
 
 (require 'subr-x)
 
 (declare-function org-agenda-files "org" (&optional unrestricted archives))
+(declare-function org-agenda-redo "org-agenda" (&optional all))
 (declare-function org-save-all-org-buffers "org" ())
+(defvar org-agenda-mode-map)
 (defvar org-directory)
 
 (defgroup dm-org-persist nil
@@ -112,6 +123,16 @@ a bare `git push' would fail there anyway."
 
 (defcustom dm-org-git-push-args '("--quiet")
   "Extra arguments passed to `git push'."
+  :type '(repeat string)
+  :group 'dm-org-persist)
+
+(defcustom dm-org-git-pull-args '("--rebase" "--autostash")
+  "Arguments passed to `git pull' by `dm-org-persist-pull'.
+
+`--autostash' is what lets the pull run at all.  The Org repository is
+rarely clean: whatever this module does not manage -- an archive file,
+notes, unrelated work elsewhere under the repository root -- is still in
+the working tree when the rebase starts, and would otherwise refuse it."
   :type '(repeat string)
   :group 'dm-org-persist)
 
@@ -174,8 +195,17 @@ always reported."
 (defvar dm-org-persist--push-again nil
   "Non-nil when a push was requested while another was in flight.")
 
+(defvar dm-org-persist--pull-process nil
+  "The `git pull' currently running, if any.")
+
+(defvar dm-org-persist--pull-head nil
+  "HEAD as it stood when the running pull started.")
+
 (defconst dm-org-persist-push-buffer-name "*dm-org-persist-push*"
   "Buffer holding the output of the most recent `git push'.")
+
+(defconst dm-org-persist-pull-buffer-name "*dm-org-persist-pull*"
+  "Buffer holding the output of the most recent pull.")
 
 (defconst dm-org-persist--environment
   '("GIT_TERMINAL_PROMPT=0" "GIT_OPTIONAL_LOCKS=0" "GIT_PAGER=cat" "GIT_EDITOR=true")
@@ -209,6 +239,23 @@ git's own words."
            (status (apply #'process-file dm-org-persist-git-executable nil '(t t) nil args)))
       (cons (if (integerp status) status -1)
             (buffer-string)))))
+
+(defun dm-org-persist--exited-cleanly-p (process)
+  "Return non-nil when PROCESS has finished with exit status zero."
+  (and (eq (process-status process) 'exit)
+       (zerop (process-exit-status process))))
+
+(defun dm-org-persist--head (repo)
+  "Return REPO's current HEAD as a string, or nil when it has none."
+  (pcase-let ((`(,code . ,out) (dm-org-persist--git repo "rev-parse" "HEAD")))
+    (when (zerop code)
+      (let ((head (string-trim out)))
+        (unless (string-empty-p head) head)))))
+
+(defun dm-org-persist--count (repo range)
+  "Return the number of commits in RANGE within REPO, or 0 when git refuses."
+  (pcase-let ((`(,code . ,out) (dm-org-persist--git repo "rev-list" "--count" range)))
+    (if (zerop code) (string-to-number (string-trim out)) 0)))
 
 (defun dm-org-persist-reset-repository ()
   "Forget the cached repository root."
@@ -432,8 +479,7 @@ of commits cannot fan out into a crowd of processes."
   "Report the outcome of PROCESS and honor any push deferred while it ran."
   (unless (process-live-p process)
     (setq dm-org-persist--push-process nil)
-    (if (and (eq (process-status process) 'exit)
-             (zerop (process-exit-status process)))
+    (if (dm-org-persist--exited-cleanly-p process)
         (dm-org-persist--log "✓ Org agenda pushed")
       ;; The commit is already in the local history; a failed push costs
       ;; replication, not the record.
@@ -536,6 +582,206 @@ backlog anyway."
       (ignore-errors (dm-org-persist-flush)))))
 
 (add-hook 'kill-emacs-hook #'dm-org-persist--flush-before-exit-h)
+
+;;; ————————————————————————————
+;;; Pulling
+;;; ————————————————————————————
+
+;; `--autostash' is what lets this run at all: the Org repository is rarely
+;; clean, and what is dirty is usually something this module does not manage,
+;; so there is nothing for the pre-pull flush to commit and nothing to do but
+;; carry it across the rebase.
+;;
+;; The command refuses rather than queues.  The push has a mutex because
+;; commits arrive on their own schedule and must not be dropped; a pull is
+;; asked for by hand, so when the repository is busy the honest answer is to
+;; say so and let the request be repeated.
+
+(defun dm-org-persist--pull-failed ()
+  "Report that the pull failed."
+  (let ((repo (dm-org-persist-repository)))
+    (if (and repo (dm-org-persist--busy-p repo))
+        ;; Worth saying out loud, because the consequence outlives the command:
+        ;; `dm-org-persist--busy-p' makes every later flush defer with only a
+        ;; warning, so agenda edits would quietly stop being committed until
+        ;; the rebase is finished or aborted.
+        (message (concat "✗ Org agenda pull stopped — %s is mid-rebase, and agenda "
+                         "commits are paused until it is resolved or aborted (see %s)")
+                 (abbreviate-file-name repo) dm-org-persist-pull-buffer-name)
+      (message "✗ Org agenda pull failed — see %s" dm-org-persist-pull-buffer-name))))
+
+(defun dm-org-persist--reread-files (repo)
+  "Re-read Org buffers under REPO whose files the pull rewrote.
+
+This has to happen before the agenda is rebuilt, because the agenda is
+built from buffers rather than from files: `org-get-agenda-file-buffer'
+reuses whatever buffer already visits an agenda file, so a rebuild over
+buffers that still hold the pre-pull text just redraws the old plan.
+
+`global-auto-revert-mode' does get there on its own, but not by the time
+git exits.  A rebase writes each file several times -- checkout, apply,
+and again for the autostash pop -- and notification-driven reverts are
+rate-limited to one per `auto-revert--lockout-interval' (2.5s), so the
+last write of a pull is routinely still unread seconds after the sentinel
+has run.  That gap is what made a second, hand-issued redo look
+necessary."
+  (let ((root (file-name-as-directory (file-truename repo))))
+    (dolist (buffer (buffer-list))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (when (and buffer-file-name
+                     (derived-mode-p 'org-mode)
+                     ;; Never discard unsaved work.  `dm-org-persist-pull'
+                     ;; saves every Org buffer before it starts, so anything
+                     ;; modified now was typed while git was running and is
+                     ;; the user's, not the rebase's.  Auto-revert leaves
+                     ;; these alone too.
+                     (not (buffer-modified-p))
+                     (string-prefix-p root (file-truename buffer-file-name))
+                     (file-exists-p buffer-file-name)
+                     (not (verify-visited-file-modtime buffer)))
+            ;; The same call auto-revert would have made, just at the moment
+            ;; the contents are known to be final.
+            (ignore-errors
+              (revert-buffer 'ignore-auto 'noconfirm 'preserve-modes))))))))
+
+(defun dm-org-persist--refresh-agenda ()
+  "Re-read what the pull changed, then rebuild every live agenda buffer.
+
+An agenda buffer is a rendering rather than a file, so nothing reverts it:
+without this it keeps showing the plan as it stood before the pull."
+  (let ((repo (dm-org-persist-repository)))
+    (when repo (dm-org-persist--reread-files repo)))
+  (dolist (buffer (buffer-list))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (when (derived-mode-p 'org-agenda-mode)
+          ;; An agenda built from a command that cannot be replayed will
+          ;; signal; a stale agenda is not worth failing a successful pull.
+          (ignore-errors (org-agenda-redo)))))))
+
+(defun dm-org-persist--start-pull (repo)
+  "Start `git pull' in REPO."
+  (let ((default-directory (file-name-as-directory repo))
+        (process-environment (append dm-org-persist--environment process-environment)))
+    (setq dm-org-persist--pull-process
+          (make-process
+           :name "dm-org-persist-pull"
+           :buffer (get-buffer-create dm-org-persist-pull-buffer-name)
+           :noquery t
+           :connection-type 'pipe
+           :command (append (list dm-org-persist-git-executable "pull")
+                            dm-org-git-pull-args
+                            (when dm-org-git-remote (list dm-org-git-remote)))
+           :sentinel #'dm-org-persist--pull-sentinel))))
+
+(defun dm-org-persist--pull-sentinel (process _event)
+  "Report the outcome of PROCESS and refresh what it changed."
+  (unless (process-live-p process)
+    (setq dm-org-persist--pull-process nil)
+    (if (not (dm-org-persist--exited-cleanly-p process))
+        (dm-org-persist--pull-failed)
+      (let* ((repo (dm-org-persist-repository))
+             ;; Measured against the upstream, not HEAD: `OLD..HEAD' would also
+             ;; count the local commits the rebase replayed under new hashes,
+             ;; and reporting those as newly arrived would be a lie.
+             (arrived (if dm-org-persist--pull-head
+                          (dm-org-persist--count
+                           repo (concat dm-org-persist--pull-head "..@{u}"))
+                        0)))
+        (if (zerop arrived)
+            ;; Nothing arrived, so nothing on disk changed and what is on
+            ;; screen is already right.  Not rebuilding here is what keeps
+            ;; `dm-org-persist-pull-and-redo' down to one rebuild per `g r'.
+            (message "✓ Org agenda already up to date")
+          (message "✓ Org agenda pulled (%d new commit%s)"
+                   arrived (if (= arrived 1) "" "s"))
+          (dm-org-persist--refresh-agenda))
+        ;; The push `dm-org-persist-flush' was not allowed to start, reissued
+        ;; now that it can succeed.
+        (when (and dm-org-git-auto-push
+                   (> (dm-org-persist--count repo "@{u}..HEAD") 0))
+          (dm-org-persist-push))))))
+
+(defun dm-org-persist-pull ()
+  "Fetch the Org repository and rebase onto its upstream.
+
+Anything still queued is committed first, so a mutation made moments ago
+rebases as a commit rather than riding through the autostash.  The push
+that commit would normally trigger is held back until after the rebase:
+it would race the very commits it uploads, and would be refused as a
+non-fast-forward anyway.
+
+The pull runs asynchronously; its output collects in
+`dm-org-persist-pull-buffer-name'.  Any live agenda buffer is rebuilt once
+it succeeds, and only if it brought something in.  See
+`dm-org-git-pull-args' for the pull itself."
+  (interactive)
+  (let ((repo (dm-org-persist-repository)))
+    (cond
+     ((null repo)
+      (dm-org-persist--warn "No Git repository found for %s"
+                            (abbreviate-file-name (or (bound-and-true-p org-directory) "?"))))
+     ((dm-org-persist--busy-p repo)
+      (dm-org-persist--warn
+       "Not pulling: a merge, rebase, or bisect is already in progress in %s"
+       (abbreviate-file-name repo)))
+     ((process-live-p dm-org-persist--pull-process)
+      (message "Org agenda pull already running"))
+     ;; A rebase rewrites the commits an in-flight push is uploading.
+     ((process-live-p dm-org-persist--push-process)
+      (message "Org agenda push in flight — try the pull again in a moment"))
+     ((not (dm-org-persist--upstream-p repo))
+      (message "Org agenda branch has no upstream to pull from"))
+     ((not (dm-org-persist--save)) nil)
+     (t
+      (let ((dm-org-git-auto-push nil))
+        (dm-org-persist-flush))
+      (if dm-org-persist--events
+          ;; `dm-org-persist-flush' keeps the queue when a commit fails, and it
+          ;; has already warned.  Rebasing over uncommitted mutations would
+          ;; hand them to the autostash, which is what the flush was for.
+          (dm-org-persist--warn "Not pulling: queued Org events are still uncommitted")
+        (setq dm-org-persist--pull-head (dm-org-persist--head repo))
+        (with-current-buffer (get-buffer-create dm-org-persist-pull-buffer-name)
+          (erase-buffer))
+        (dm-org-persist--start-pull repo))))))
+
+(defun dm-org-persist-pull-and-redo (&optional all)
+  "Pull the Org repository, then rebuild the agenda in this buffer.
+
+ALL is passed through to `org-agenda-redo', so a prefix argument still
+means what it means there.
+
+The rebuild does not wait for the pull, because the pull is a git process
+and waiting on it would freeze the keystroke: this redraws what is on
+disk now, and `dm-org-persist--pull-sentinel' rebuilds again if anything
+arrived.  A pull that is refused, or that finds nothing new, therefore
+costs exactly the one rebuild a plain redo would have."
+  (interactive "P" org-agenda-mode)
+  (dm-org-persist-pull)
+  (org-agenda-redo all))
+
+(with-eval-after-load 'org-agenda
+  ;; `C-c C-u' is unbound in `org-agenda-mode-map', and a C-c chord falls
+  ;; through evil's motion state to the buffer's own map, so this needs no
+  ;; evil-specific handling.  `SPC o p' already reaches the same command from
+  ;; the agenda; this is the one-chord version for when it is already open.
+  (define-key org-agenda-mode-map (kbd "C-c C-u") #'dm-org-persist-pull)
+  ;; A command remap rather than a `g r' of our own, for two reasons.  The key
+  ;; belongs to evil-org-agenda's motion-state map, set up from `dm-org', so a
+  ;; literal rebinding here would be a load-order race; the remap is found
+  ;; whatever map the key came from, and covers plain `r' as well.  And it is
+  ;; keys only: Org itself calls `org-agenda-redo' from filters, bulk edits,
+  ;; and view changes, and `dm-org-persist--refresh-agenda' calls it from the
+  ;; pull's own sentinel -- advising the command would turn every one of those
+  ;; into a pull, the last of them recursively.
+  ;;
+  ;; `g R' (`org-agenda-redo-all') is deliberately left alone: it reaches
+  ;; `org-agenda-redo' by a function call, not a key, so it stays a plain
+  ;; rebuild of every view in the buffer.
+  (define-key org-agenda-mode-map
+              [remap org-agenda-redo] #'dm-org-persist-pull-and-redo))
 
 (provide 'dm-org-persist)
 ;;; dm-org-persist.el ends here
