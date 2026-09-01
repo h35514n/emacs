@@ -4,6 +4,10 @@
 
 ;; Run from the repository root:
 ;;
+;;   bin/test dm-org-agenda-plan
+;;
+;; or, without the runner:
+;;
 ;;   emacs -Q --batch \
 ;;     -L modules -L test \
 ;;     -L "$HOME/.dotfiles/share/emacs/straight/build/org" \
@@ -21,6 +25,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'org)
 (require 'org-agenda)
@@ -77,33 +82,42 @@ and a repeater.")
   "Build a three day agenda over FIXTURE from 2026-08-31 and run BODY.
 
 BODY runs in the agenda buffer with `dm-org-agenda-plan-tests--file' bound to
-the Org file, so a test can read back what an apply wrote."
+the Org file, so a test can read back what an apply wrote.
+
+The clock is pinned to the Monday the fixtures schedule their work on.
+`org-agenda-list' fixes which days the buffer spans but not which of them is
+today, and Org draws undone work scheduled before today a second time on
+today, as `past-scheduled'.  Unpinned, a day inside the span eventually
+becomes today, every overloaded Monday turns up on Tuesday as well, and the
+spill tests start proposing the day after the one they expect."
   (declare (indent 1) (debug t))
-  `(let ((dm-org-agenda-plan-tests--file
-          (make-temp-file "dm-org-agenda-plan" nil ".org" ,fixture))
-         (org-agenda-buffer-name "*dm-org-agenda-plan-test*"))
-     (unwind-protect
-         (let ((org-agenda-files (list dm-org-agenda-plan-tests--file))
-               (org-agenda-format-date
-                (lambda (date) (concat "\n" (org-agenda-format-date-aligned date))))
-               (org-agenda-prefix-format '((agenda . "[%4e] %5t ")))
-               (org-agenda-skip-scheduled-if-done t)
-               (org-agenda-use-time-grid nil)
-               (org-agenda-window-setup 'current-window)
-               (org-agenda-sticky nil)
-               (org-log-reschedule nil)
-               (dm-org-daily-capacity '((1 . 360) (2 . 360) (3 . 360)))
-               (dm-org-daily-workday '((1 . (540 . 1080))
-                                       (2 . (540 . 1080))
-                                       (3 . (540 . 1080)))))
-           (save-window-excursion
-             (org-agenda-list nil "2026-08-31" 3))
-           (with-current-buffer org-agenda-buffer-name ,@body))
-       (dolist (buffer (org-buffer-list 'files))
-         (kill-buffer buffer))
-       (dolist (name (list "*Org Day Plan*" org-agenda-buffer-name))
-         (when (get-buffer name) (kill-buffer name)))
-       (delete-file dm-org-agenda-plan-tests--file))))
+  `(cl-letf (((symbol-function 'org-today)
+              (lambda () (time-to-days (org-time-string-to-time "2026-08-31")))))
+     (let ((dm-org-agenda-plan-tests--file
+            (make-temp-file "dm-org-agenda-plan" nil ".org" ,fixture))
+           (org-agenda-buffer-name "*dm-org-agenda-plan-test*"))
+       (unwind-protect
+           (let ((org-agenda-files (list dm-org-agenda-plan-tests--file))
+                 (org-agenda-format-date
+                  (lambda (date) (concat "\n" (org-agenda-format-date-aligned date))))
+                 (org-agenda-prefix-format '((agenda . "[%4e] %5t ")))
+                 (org-agenda-skip-scheduled-if-done t)
+                 (org-agenda-use-time-grid nil)
+                 (org-agenda-window-setup 'current-window)
+                 (org-agenda-sticky nil)
+                 (org-log-reschedule nil)
+                 (dm-org-daily-capacity '((1 . 360) (2 . 360) (3 . 360)))
+                 (dm-org-daily-workday '((1 . (540 . 1080))
+                                         (2 . (540 . 1080))
+                                         (3 . (540 . 1080)))))
+             (save-window-excursion
+               (org-agenda-list nil "2026-08-31" 3))
+             (with-current-buffer org-agenda-buffer-name ,@body))
+         (dolist (buffer (org-buffer-list 'files))
+           (kill-buffer buffer))
+         (dolist (name (list "*Org Day Plan*" org-agenda-buffer-name))
+           (when (get-buffer name) (kill-buffer name)))
+         (delete-file dm-org-agenda-plan-tests--file)))))
 
 (defun dm-org-agenda-plan-tests--agenda ()
   "Return the live agenda buffer.

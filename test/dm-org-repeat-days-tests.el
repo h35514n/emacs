@@ -4,6 +4,10 @@
 
 ;; Run from the repository root:
 ;;
+;;   bin/test dm-org-repeat-days
+;;
+;; or, without the runner:
+;;
 ;;   emacs -Q --batch \
 ;;     -L modules -L test \
 ;;     -L "$HOME/.dotfiles/share/emacs/straight/build/org" \

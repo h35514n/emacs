@@ -4,6 +4,10 @@
 
 ;; Run from the repository root:
 ;;
+;;   bin/test dm-org-agenda-capacity
+;;
+;; or, without the runner:
+;;
 ;;   emacs -Q --batch \
 ;;     -L modules -L test \
 ;;     -L "$HOME/.dotfiles/share/emacs/straight/build/org" \
@@ -15,12 +19,18 @@
 ;; what is under test is precisely which lines Org puts in the buffer and what
 ;; it hangs on them.
 ;;
-;; The fixture is pinned to the week of Monday 2026-08-31 and the agenda is
-;; asked for that week explicitly, so the tests do not depend on the day they
-;; are run.  The one exception is noted on the deadline-preview test.
+;; The fixture is pinned to the week of Monday 2026-08-31, and so is the clock:
+;; `org-agenda-list' fixes which days the buffer spans, but not which of them
+;; is today, and today is not a detail here.  Org draws an undone overdue entry
+;; a second time on today as `past-scheduled', and previews a deadline on today
+;; from inside its warning window, so the same fixture produces a different
+;; buffer depending on when the suite runs.  Both macros therefore bind
+;; `org-today', and today is deliberately kept inside the week: the
+;; deadline-preview and carry-over cases have nothing to say otherwise.
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'calendar)
 (require 'org)
@@ -206,37 +216,56 @@
 "
   "One week of entries covering every case the accounting has to separate.")
 
-(defmacro dm-org-agenda-capacity-tests--with-agenda (&rest body)
-  "Build an agenda over the fixture for the week of 2026-08-31 and run BODY.
+(defmacro dm-org-agenda-capacity-tests--with-agenda-on (today &rest body)
+  "Build an agenda over the fixture for the week of 2026-08-31 as of TODAY.
 
 BODY runs in the agenda buffer.  The agenda settings mirror the ones in
 `dm-org' that change what lands in the buffer -- log mode especially, which
-adds the \"Closed:\" lines the accounting has to ignore."
+adds the \"Closed:\" lines the accounting has to ignore.
+
+TODAY is a date string, and pinning it is what makes the buffer reproducible.
+`org-agenda-list' fixes the span but reads the clock for everything else:
+undone work scheduled before today is drawn again on today as
+`past-scheduled', and a deadline inside its warning window is previewed
+there.  Left to the real clock, this fixture holds different lines in
+September than it did in August.  Same lever, and same reason, as
+`dm-org-repeat-days-tests--completing-on'."
+  (declare (indent 1) (debug t))
+  `(cl-letf (((symbol-function 'org-today)
+              (lambda () (time-to-days (org-time-string-to-time ,today)))))
+     (let ((file (make-temp-file "dm-org-agenda-capacity" nil ".org"
+                                 dm-org-agenda-capacity-tests--fixture))
+           (org-agenda-buffer-name "*dm-org-agenda-capacity-test*"))
+       (unwind-protect
+           (let ((org-agenda-files (list file))
+                 (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))
+                 (org-agenda-format-date
+                  (lambda (date) (concat "\n" (org-agenda-format-date-aligned date))))
+                 (org-agenda-prefix-format '((agenda . "[%4e] %5t ")))
+                 (org-agenda-skip-deadline-if-done t)
+                 (org-agenda-skip-scheduled-if-done t)
+                 (org-agenda-start-with-log-mode t)
+                 (org-agenda-use-time-grid nil)
+                 (org-agenda-window-setup 'current-window)
+                 (org-agenda-sticky nil)
+                 (org-deadline-warning-days 7)
+                 (dm-org-daily-capacity '((1 . 360) (4 . 360)))
+                 (dm-org-daily-workday '((1 . (540 . 1080)) (4 . (540 . 1080)))))
+             (save-window-excursion
+               (org-agenda-list nil "2026-08-31" 7))
+             (with-current-buffer org-agenda-buffer-name ,@body))
+         (when (get-buffer org-agenda-buffer-name)
+           (kill-buffer org-agenda-buffer-name))
+         (delete-file file)))))
+
+(defmacro dm-org-agenda-capacity-tests--with-agenda (&rest body)
+  "Build the fixture week's agenda as of its Monday and run BODY in it.
+
+The day everything is scheduled on, so nothing in the buffer is overdue.  A
+test that wants the carry-over case names its own day with
+`dm-org-agenda-capacity-tests--with-agenda-on'."
   (declare (indent 0) (debug t))
-  `(let ((file (make-temp-file "dm-org-agenda-capacity" nil ".org"
-                               dm-org-agenda-capacity-tests--fixture))
-         (org-agenda-buffer-name "*dm-org-agenda-capacity-test*"))
-     (unwind-protect
-         (let ((org-agenda-files (list file))
-               (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))
-               (org-agenda-format-date
-                (lambda (date) (concat "\n" (org-agenda-format-date-aligned date))))
-               (org-agenda-prefix-format '((agenda . "[%4e] %5t ")))
-               (org-agenda-skip-deadline-if-done t)
-               (org-agenda-skip-scheduled-if-done t)
-               (org-agenda-start-with-log-mode t)
-               (org-agenda-use-time-grid nil)
-               (org-agenda-window-setup 'current-window)
-               (org-agenda-sticky nil)
-               (org-deadline-warning-days 7)
-               (dm-org-daily-capacity '((1 . 360) (4 . 360)))
-               (dm-org-daily-workday '((1 . (540 . 1080)) (4 . (540 . 1080)))))
-           (save-window-excursion
-             (org-agenda-list nil "2026-08-31" 7))
-           (with-current-buffer org-agenda-buffer-name ,@body))
-       (when (get-buffer org-agenda-buffer-name)
-         (kill-buffer org-agenda-buffer-name))
-       (delete-file file))))
+  `(dm-org-agenda-capacity-tests--with-agenda-on "2026-08-31" ,@body))
 
 (ert-deftest dm-org-agenda-day-load/sums-only-actionable-effort ()
   (dm-org-agenda-capacity-tests--with-agenda
@@ -266,6 +295,25 @@ adds the \"Closed:\" lines the accounting has to ignore."
       (should-not (plist-get load :capacity))
       (should-not (plist-get load :remaining))
       (should (= 0 (plist-get load :total))))))
+
+(ert-deftest dm-org-agenda-day-load/charges-overdue-work-to-today ()
+  ;; Monday's undone work is drawn again on today as `past-scheduled', which
+  ;; `dm-org-agenda-capacity-entry-types' counts: yesterday's leftovers are
+  ;; still today's problem.  The one case where the day a line is drawn on is
+  ;; not the day its own timestamp names -- and the shape a real agenda is in
+  ;; most mornings.
+  (dm-org-agenda-capacity-tests--with-agenda-on "2026-09-01"
+    (let ((load (dm-org-agenda-day-load '(9 1 2026))))
+      (should (= 300 (plist-get load :total)))
+      (should (= 1 (plist-get load :unestimated)))
+      ;; Carried-over work arrives untimed: the 20:30 standup is a fixed block
+      ;; on the day it was scheduled for and flexible once it is merely late.
+      (should (= 0 (plist-get load :fixed)))
+      (should (= 300 (plist-get load :flexible)))
+      ;; Tuesday has no capacity in the fixture, so there is nothing to
+      ;; measure the load against.  The work is charged all the same.
+      (should-not (plist-get load :capacity))
+      (should-not (plist-get load :remaining)))))
 
 (ert-deftest dm-org-agenda-day-load/outside-an-agenda-buffer-errors ()
   (with-temp-buffer

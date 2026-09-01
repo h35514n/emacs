@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: bin/test [options] [suite...]
+
+Run the ERT suites under test/ in batch Emacs. With no SUITE argument, runs
+every suite. A SUITE may be given as a path, a file name, or the module it
+covers, so these are the same thing:
+
+  bin/test dm-org-persist
+  bin/test dm-org-persist-tests
+  bin/test test/dm-org-persist-tests.el
+
+Options:
+  -s, --select REGEXP  Run only tests whose name matches REGEXP. Applied to
+                       every suite, so a suite with no match reports 0 tests.
+  -v, --verbose        Print each suite's full ERT output. Without this, a
+                       passing suite prints one line and a failing one prints
+                       its failures.
+  -l, --list           List the suites and exit.
+  -h, --help           Show this help.
+
+Environment:
+  EMACS                Emacs to run. Default: emacs.
+  ORG_LOAD_PATH        Directory holding the Org build to test against. Four
+                       of the five suites need one for their end-to-end tests.
+                       Default: straight's, derived from `dm-data-home' in
+                       early-init.el.
+
+Exits non-zero if any suite reported an unexpected result.
+USAGE
+}
+
+log() {
+  printf '==> %s\n' "$*"
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+root="$(dirname -- "${script_dir}")"
+
+EMACS="${EMACS:-emacs}"
+SELECTOR=""
+VERBOSE=0
+LIST=0
+SUITES=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -s | --select)
+      [ $# -ge 2 ] || die "$1 needs a regexp"
+      SELECTOR="$2"
+      shift 2
+      ;;
+    -v | --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -l | --list)
+      LIST=1
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      SUITES+=("$@")
+      break
+      ;;
+    -*)
+      die "unknown option: $1 (see bin/test --help)"
+      ;;
+    *)
+      SUITES+=("$1")
+      shift
+      ;;
+  esac
+done
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+have "${EMACS}" || die "no such executable: ${EMACS} (set EMACS to override)"
+
+# Every suite file in test/, in the order the shell globs them.
+all_suites() {
+  local file found=0
+  for file in "${root}"/test/*-tests.el; do
+    [ -e "${file}" ] || continue
+    found=1
+    printf '%s\n' "${file}"
+  done
+  [ "${found}" -eq 1 ] || die "no suites found in ${root}/test"
+}
+
+# Accept a suite as a path, a file name, or the module name it covers.
+resolve_suite() {
+  local name="$1" candidate
+  for candidate in \
+    "${name}" \
+    "${root}/${name}" \
+    "${root}/test/${name}" \
+    "${root}/test/${name}.el" \
+    "${root}/test/${name}-tests.el"; do
+    if [ -f "${candidate}" ]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  die "no such suite: ${name} (bin/test --list shows what there is)"
+}
+
+# straight builds Org under `dm-data-home', which early-init.el owns. Ask it
+# rather than hardcoding the path a second time.
+resolve_org_load_path() {
+  if [ -n "${ORG_LOAD_PATH:-}" ]; then
+    printf '%s' "${ORG_LOAD_PATH}"
+    return 0
+  fi
+  "${EMACS}" -Q --batch -l "${root}/early-init.el" \
+    --eval '(princ (expand-file-name "straight/build/org" dm-data-home))' \
+    2>/dev/null || true
+}
+
+# An Elisp string literal holding $1.
+elisp_string() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '"%s"' "${s}"
+}
+
+if [ "${LIST}" -eq 1 ]; then
+  all_suites | while read -r file; do
+    printf '%s\n' "$(basename "${file}" .el)"
+  done
+  exit 0
+fi
+
+if [ "${#SUITES[@]}" -eq 0 ]; then
+  while read -r file; do
+    SUITES+=("${file}")
+  done < <(all_suites)
+else
+  resolved=()
+  for name in "${SUITES[@]}"; do
+    resolved+=("$(resolve_suite "${name}")")
+  done
+  SUITES=("${resolved[@]}")
+fi
+
+org_load_path="$(resolve_org_load_path)"
+if [ -z "${org_load_path}" ] || [ ! -d "${org_load_path}" ]; then
+  warn "no Org build at ${org_load_path:-<unresolved>}; suites needing one will fail"
+  warn "run the straight bootstrap, or set ORG_LOAD_PATH"
+  org_load_path=""
+fi
+
+if [ -n "${SELECTOR}" ]; then
+  eval_form="(ert-run-tests-batch-and-exit $(elisp_string "${SELECTOR}"))"
+else
+  eval_form="(ert-run-tests-batch-and-exit)"
+fi
+
+# ERT reports a failure three ways: a backtrace, a `condition:' block holding
+# the form that failed and why, and a name in the trailer after the summary.
+# Without --verbose, keep the last two -- the backtrace is almost entirely
+# ert internals -- and drop the line-per-passing-test in between.
+failures_only() {
+  awk '
+    /^Test .+ backtrace:$/          { show = 0; next }
+    /^Test .+ condition:$/          { show = 1; print; next }
+    /^ *(passed|skipped) +[0-9]+\// { show = 0; next }
+    /^ *FAILED +[0-9]+\//           { show = 0; print; next }
+    /^[0-9]+ unexpected results:$/  { print; next }
+    /^ *FAILED +[^0-9 ]/            { print; next }
+    show                            { print }
+  '
+}
+
+run_suite() {
+  local file="$1" name output summary status=0
+  name="$(basename "${file}" .el)"
+
+  local args=(-Q --batch -L "${root}/modules" -L "${root}/test")
+  [ -n "${org_load_path}" ] && args+=(-L "${org_load_path}")
+  args+=(-l "${file}" --eval "${eval_form}")
+
+  set +e
+  output="$("${EMACS}" "${args[@]}" 2>&1)"
+  status=$?
+  set -e
+
+  summary="$(printf '%s\n' "${output}" | grep -E '^Ran [0-9]+ tests?' | tail -1)"
+  summary="${summary%% (*}"
+
+  if [ "${status}" -eq 0 ]; then
+    printf '  ok    %-32s %s\n' "${name}" "${summary:-no tests ran}"
+  else
+    printf '  FAIL  %-32s %s\n' "${name}" "${summary:-emacs exited ${status} with no summary}"
+  fi
+
+  if [ "${VERBOSE}" -eq 1 ]; then
+    printf '%s\n' "${output}" | sed 's/^/    /'
+  elif [ "${status}" -ne 0 ]; then
+    if [ -n "${summary}" ]; then
+      printf '%s\n' "${output}" | failures_only | sed 's/^/    /'
+    else
+      # No summary means it never got as far as running tests.
+      printf '%s\n' "${output}" | sed 's/^/    /'
+    fi
+  fi
+
+  return "${status}"
+}
+
+log "$(basename "${EMACS}") $("${EMACS}" -Q --batch --eval '(princ emacs-version)')${SELECTOR:+, tests matching /${SELECTOR}/}"
+
+passed=0
+failed=0
+for file in "${SUITES[@]}"; do
+  if run_suite "${file}"; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+  fi
+done
+
+total=$((passed + failed))
+if [ "${failed}" -eq 0 ]; then
+  log "${total} suite$([ "${total}" -eq 1 ] || printf s), all ok"
+else
+  log "${total} suite$([ "${total}" -eq 1 ] || printf s), ${passed} ok, ${failed} failed"
+  exit 1
+fi

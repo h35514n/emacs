@@ -4,6 +4,10 @@
 
 ;; Run from the repository root:
 ;;
+;;   bin/test dm-org-persist
+;;
+;; or, without the runner:
+;;
 ;;   emacs -Q --batch \
 ;;     -L modules -L test \
 ;;     -l dm-org-persist-tests.el \

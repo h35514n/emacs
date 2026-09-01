@@ -87,6 +87,26 @@ The first batch run clones straight.el into
 `~/.dotfiles/share/emacs/straight/` and installs every package declared
 by `use-package`. Expect it to take several minutes on a fresh host.
 
+Tests
+-----
+
+The ERT suites under `test/` run in batch Emacs:
+
+``` sh
+bin/test                       # every suite
+bin/test dm-org-persist        # one suite, by the module it covers
+bin/test -s describe-archive   # only tests whose name matches
+bin/test --list                # what suites there are
+```
+
+A passing suite prints one line; a failing one prints the form that
+failed and why. `-v` prints everything ERT emits. The exit status is
+non-zero if any suite had an unexpected result.
+
+Four of the five suites need Org on the load path for their end-to-end
+tests, which `bin/test` derives from `dm-data-home` in `early-init.el`;
+set `ORG_LOAD_PATH` to point it somewhere else.
+
 Notes
 -----
 
