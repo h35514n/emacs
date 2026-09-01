@@ -11,6 +11,7 @@
 ;;     Reschedule "Submit application" 2026-08-31 → 2026-09-02
 ;;     Priority "Finish project proposal" B → A
 ;;     Refile "Research API pricing" Inbox → Mallard
+;;     Archive "Water plants" Current Tasks → org/archive/tasks.org_archive
 ;;
 ;; Why advice rather than a hook:
 ;;
@@ -44,6 +45,24 @@
 ;; outside `org-agenda-files' still gets that file committed rather than
 ;; leaving it dirty and orphaned.
 ;;
+;; Archiving is the same shape, with more riding on it.  The file named by
+;; `org-archive-location' is never in `org-agenda-files', and the first archive
+;; out of a given Org file creates it, so without the destination in `:files'
+;; the commit would record the subtree leaving the plan and nothing about where
+;; it went -- and the archive file itself would sit untracked.  Org's
+;; counterpart hook is `org-archive-finalize-hook', which runs in the archive
+;; buffer with point on the pasted heading.  `org-archive-to-archive-sibling'
+;; runs no hook and needs none: it never leaves the file it started in and
+;; always lands under `org-archive-sibling-heading', so that one destination is
+;; supplied rather than observed.
+;;
+;; The archive advice sits on `org-agenda-archive-with' rather than on the four
+;; commands that call it.  That is where every route to an archive meets --
+;; `$', `da', `dA', and the bulk `B $', which arrives once per marked entry --
+;; so one advice covers all of them.  It is also the only place the archiving
+;; command itself is visible, and that argument is what says where the subtree
+;; went in the one case no hook reports.
+;;
 ;; Why an event type is chosen rather than fixed per command:
 ;;
 ;; Most of these commands change one known thing.  The day-shifting pair does
@@ -55,10 +74,27 @@
 ;; first whose describer sees a change, so a dragged deadline is recorded as a
 ;; deadline rather than mislabelled.
 ;;
-;; Bulk operations need no special handling.  `org-agenda-maybe-loop' re-enters
-;; the same command symbol once per entry in the region, so each pass hits this
-;; advice at its own agenda line and produces its own event; the debouncing in
-;; `dm-org-persist' then collects them into one commit.
+;; Bulk operations need no special handling.  `org-agenda-bulk-action' calls the
+;; command once per marked entry, so each call hits this advice at its own
+;; agenda line and produces its own event; the debouncing in `dm-org-persist'
+;; then collects them into one commit.
+;;
+;; Org's other bulk route does not survive being advised, which is worth
+;; knowing before relying on it.  `org-agenda-maybe-loop' repeats a command
+;; over the headlines in an active region only when `called-interactively-p'
+;; reports an interactive call.  That test reads the two stack frames above
+;; the asking function, and nadvice can see past its own combinators only
+;; while they are the ones calling inward; an `:around' advice puts an
+;; ordinary function -- this one -- between them, and the test comes back nil.
+;; The loop then never runs and the command acts on the entry at point alone.
+;; So `org-agenda-loop-over-headlines-in-active-region' is inert for the four
+;; instrumented commands that consult it: `org-agenda-todo',
+;; `org-agenda-schedule', `org-agenda-deadline', and `org-agenda-archive-with'.
+;; The rest are unaffected because Org never loops them over a region in the
+;; first place.  Reaching the original through `funcall-interactively' restores
+;; the test, but then the outer invocation and the loop's first pass both
+;; describe the entry point started on, so the fix needs a re-entry guard
+;; rather than a one-word change.
 ;;
 ;; What is deliberately not recorded:
 ;;
@@ -88,6 +124,9 @@
 ;;     used as a fallback).
 ;;   - `org-after-refile-insert-hook' runs in the destination buffer with point
 ;;     on the inserted heading.
+;;   - `org-archive-finalize-hook' exists (Org 9.8) and runs in the archive
+;;     buffer with point on the pasted heading.  Without it, archiving to a
+;;     file records nothing rather than recording something wrong.
 ;;   - `org-entry-get' on "PRIORITY" returns `org-priority-default' when the
 ;;     entry carries no cookie, so an uncookied entry and one explicitly set to
 ;;     the default are indistinguishable.  Harmless: setting the default on an
@@ -104,6 +143,8 @@
 (declare-function org-get-heading "org" (&optional no-tags no-todo no-priority no-comment))
 (declare-function org-get-outline-path "org" (&optional with-self use-cache))
 (defvar org-after-refile-insert-hook)
+(defvar org-archive-finalize-hook)
+(defvar org-archive-sibling-heading)
 
 (defgroup dm-org-agenda-persist nil
   "Record Org agenda mutations as semantic Git events."
@@ -116,11 +157,14 @@
     org-agenda-priority
     org-agenda-do-date-later
     org-agenda-do-date-earlier
-    org-agenda-refile)
+    org-agenda-refile
+    org-agenda-archive-with)
   "Agenda commands instrumented to record a semantic event.
 
 Only commands `dm-org-agenda-persist--advice' knows how to describe can be
-listed.  Changing this takes effect on the next call to
+listed.  `org-agenda-archive-with' stands in for the four archiving
+commands, which reach it rather than being instrumented themselves.
+Changing this takes effect on the next call to
 `dm-org-agenda-persist-install'."
   :type '(repeat function)
   :group 'dm-org-agenda-persist)
@@ -300,13 +344,35 @@ at the top level of a file."
                   (cons 'from-file (dm-org-persist-relative-name
                                     (plist-get before :file))))))))
 
+(defun dm-org-agenda-persist-describe-archive (before after)
+  "Describe the archiving of BEFORE\='s entry into AFTER\='s location.
+
+Alone among the describers this has no no-op case.  The others compare two
+states of an entry that is still in the plan, and can find them equal; an
+archive that ran to completion took the entry out of the plan, whether or
+not both ends name the same file."
+  (let* ((source (plist-get before :file))
+         (target (plist-get after :file))
+         (from (dm-org-agenda-persist-container before))
+         ;; Which end of the destination is worth naming depends on where it
+         ;; went.  Moving to the archive file is a move between files, and the
+         ;; file is the news; moving to the archive sibling never leaves the
+         ;; file, so naming it again would say nothing the source did not.
+         (to (if (equal source target)
+                 (dm-org-agenda-persist-container after)
+               (dm-org-persist-relative-name target))))
+    (cons (format "Archive %S %s → %s" (plist-get before :heading) from to)
+          (list (cons 'old from) (cons 'new to)
+                (cons 'from-file (dm-org-persist-relative-name source))))))
+
 (defconst dm-org-agenda-persist-describers
   '((todo . dm-org-agenda-persist-describe-todo)
     (scheduled . dm-org-agenda-persist-describe-scheduled)
     (deadline . dm-org-agenda-persist-describe-deadline)
     (timestamp . dm-org-agenda-persist-describe-timestamp)
     (priority . dm-org-agenda-persist-describe-priority)
-    (refile . dm-org-agenda-persist-describe-refile))
+    (refile . dm-org-agenda-persist-describe-refile)
+    (archive . dm-org-agenda-persist-describe-archive))
   "Alist mapping an event type to the function that describes it.
 
 A describer takes the before and after snapshots and returns nil for a
@@ -444,6 +510,60 @@ ARGS are passed through untouched."
           (remove-hook 'org-after-refile-insert-hook
                        #'dm-org-agenda-persist--destination-h))))))
 
+(defvar dm-org-agenda-persist--archive-destination nil
+  "Where the archive in progress landed, as a snapshot.
+Bound around `org-agenda-archive-with' and filled in by
+`dm-org-agenda-persist--archive-destination-h'.")
+
+(defun dm-org-agenda-persist--archive-destination-h ()
+  "Record where an archived subtree landed.  For `org-archive-finalize-hook'.
+
+Org runs this hook in the archive buffer with point on the pasted heading,
+before the subtree is cut from the source file: the same moment, and for
+the same reason, that a refile is read from
+`org-after-refile-insert-hook'."
+  (setq dm-org-agenda-persist--archive-destination
+        (ignore-errors (dm-org-agenda-persist--read))))
+
+(defun dm-org-agenda-persist--archive-sibling-destination (command before)
+  "Return where COMMAND archived BEFORE\='s entry, when no hook said.
+
+`org-archive-to-archive-sibling' is the one archiving command that runs no
+hook, and the one whose destination is knowable without one: it moves the
+subtree under a sibling named `org-archive-sibling-heading' in the file it
+is already in.  Anything else returns nil, so an archive whose destination
+cannot be established goes unrecorded rather than recorded wrongly."
+  (when (eq command 'org-archive-to-archive-sibling)
+    (list :file (plist-get before :file)
+          :heading (plist-get before :heading)
+          :olp (list org-archive-sibling-heading))))
+
+(defun dm-org-agenda-persist-archive-a (fn &rest args)
+  "Record an archive around FN, which is `org-agenda-archive-with'.
+
+ARGS are passed through untouched.  Its first element is the archiving
+command, which is what says where the subtree went in the one case no
+hook reports."
+  (let ((marker (dm-org-agenda-persist--active-marker)))
+    (if (not marker)
+        (apply fn args)
+      (let ((before (ignore-errors (dm-org-agenda-persist--snapshot marker)))
+            (dm-org-agenda-persist--archive-destination nil))
+        (unwind-protect
+            (progn
+              (add-hook 'org-archive-finalize-hook
+                        #'dm-org-agenda-persist--archive-destination-h)
+              (prog1 (apply fn args)
+                (when before
+                  (dm-org-agenda-persist--record
+                   '(archive) before
+                   (or dm-org-agenda-persist--archive-destination
+                       (ignore-errors
+                         (dm-org-agenda-persist--archive-sibling-destination
+                          (car args) before)))))))
+          (remove-hook 'org-archive-finalize-hook
+                       #'dm-org-agenda-persist--archive-destination-h))))))
+
 (defconst dm-org-agenda-persist--advice
   '((org-agenda-todo . dm-org-agenda-persist-todo-a)
     (org-agenda-schedule . dm-org-agenda-persist-schedule-a)
@@ -451,7 +571,8 @@ ARGS are passed through untouched."
     (org-agenda-priority . dm-org-agenda-persist-priority-a)
     (org-agenda-do-date-later . dm-org-agenda-persist-date-shift-a)
     (org-agenda-do-date-earlier . dm-org-agenda-persist-date-shift-a)
-    (org-agenda-refile . dm-org-agenda-persist-refile-a))
+    (org-agenda-refile . dm-org-agenda-persist-refile-a)
+    (org-agenda-archive-with . dm-org-agenda-persist-archive-a))
   "Alist mapping an agenda command to the advice that instruments it.")
 
 (defun dm-org-agenda-persist-install ()

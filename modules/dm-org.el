@@ -37,6 +37,12 @@
 
   (org-adapt-indentation t)
   (org-archive-location "archive/%s_archive::")
+  ;; The default, `from-org', leaves the archive file unsaved when the archive
+  ;; was started from the agenda -- which is where most of them start here.  An
+  ;; archive file that exists only in a buffer is one Git cannot stage and a
+  ;; crash can lose, and on the first archive out of a file it does not exist
+  ;; on disk at all.  See `dm-org-agenda-persist-archive-a'.
+  (org-archive-subtree-save-file-p t)
   (org-blank-before-new-entry '((heading . nil) (plain-list-item . nil)))
   (org-catch-invisible-edits 'show-and-error)
   (org-confirm-babel-evaluate nil)

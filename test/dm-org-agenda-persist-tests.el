@@ -203,6 +203,34 @@
   (let ((snapshot (dm-org-agenda-persist-tests--snapshot :olp '("Mallard"))))
     (should-not (dm-org-agenda-persist-describe-refile snapshot snapshot))))
 
+(ert-deftest dm-org-agenda-persist-describe-archive/names-the-archive-file ()
+  ;; The archive file is the whole point of the move, and it is the part that
+  ;; is not in `org-agenda-files', so the subject names it as git would.
+  (dm-org-agenda-persist-tests--in-repo
+    (should (equal "Archive \"Water plants\" Current Tasks → org/archive/tasks.org_archive"
+                   (car (dm-org-agenda-persist-describe-archive
+                         (dm-org-agenda-persist-tests--snapshot :heading "Water plants")
+                         (dm-org-agenda-persist-tests--snapshot
+                          :heading "Water plants" :olp nil
+                          :file "/repo/org/archive/tasks.org_archive")))))))
+
+(ert-deftest dm-org-agenda-persist-describe-archive/names-the-sibling-heading ()
+  ;; Archiving to a sibling never leaves the file, so repeating the file name
+  ;; would say nothing; the heading it landed under is the news.
+  (dm-org-agenda-persist-tests--in-repo
+    (should (equal "Archive \"Water plants\" Current Tasks → Archive"
+                   (car (dm-org-agenda-persist-describe-archive
+                         (dm-org-agenda-persist-tests--snapshot :heading "Water plants")
+                         (dm-org-agenda-persist-tests--snapshot
+                          :heading "Water plants" :olp '("Archive"))))))))
+
+(ert-deftest dm-org-agenda-persist-describe-archive/has-no-no-op-case ()
+  ;; Every other describer can compare two states and find them equal.  An
+  ;; archive that reached its describer moved a subtree out of the plan.
+  (dm-org-agenda-persist-tests--in-repo
+    (let ((snapshot (dm-org-agenda-persist-tests--snapshot)))
+      (should (dm-org-agenda-persist-describe-archive snapshot snapshot)))))
+
 ;;; ————————————————————————————
 ;;; Building an event
 ;;; ————————————————————————————
@@ -271,6 +299,21 @@
                      (plist-get event :files)))
       (should (equal "org/inbox.org" (alist-get 'from-file (plist-get event :data)))))))
 
+(ert-deftest dm-org-agenda-persist-event/names-the-archive-file-it-created ()
+  (dm-org-agenda-persist-tests--in-repo
+    (let ((event (dm-org-agenda-persist-event
+                  'archive
+                  (dm-org-agenda-persist-tests--snapshot :heading "Water plants")
+                  (dm-org-agenda-persist-tests--snapshot
+                   :heading "Water plants" :olp nil
+                   :file "/repo/org/archive/tasks.org_archive"))))
+      ;; `org-archive-location' points outside `org-agenda-files', and the
+      ;; first archive out of a file creates the destination, so nothing but
+      ;; `:files' can get it staged.
+      (should (equal '("/repo/org/tasks.org" "/repo/org/archive/tasks.org_archive")
+                     (plist-get event :files)))
+      (should (equal "archive" (alist-get 'type (plist-get event :data)))))))
+
 ;;; ————————————————————————————
 ;;; End to end, through the agenda
 ;;;
@@ -280,6 +323,7 @@
 
 (require 'org)
 (require 'org-agenda)
+(require 'org-archive)
 
 (defconst dm-org-agenda-persist-tests--file-contents
   "#+TITLE: Tasks
@@ -415,6 +459,47 @@ DEADLINE: <2026-08-31 Mon>
       (org-agenda-refile nil target))
     (should (equal '("Refile \"Research API pricing\" Current Tasks → Mallard")
                    (dm-org-agenda-persist-tests--subjects)))))
+
+(ert-deftest dm-org-agenda-persist-e2e/records-an-archive-to-a-new-file ()
+  (dm-org-agenda-persist-tests--with-agenda
+    (let* ((org-archive-location "archive/%s_archive::")
+           ;; What `dm-org' sets.  Left at its default, Org declines to save
+           ;; an archive file it filled from the agenda, and the file this
+           ;; test is about would exist only in a buffer.
+           (org-archive-subtree-save-file-p t)
+           (archive (expand-file-name "archive/tasks.org_archive" directory)))
+      (make-directory (file-name-directory archive) t)
+      (unwind-protect
+          ;; The temporary directory stands in for the repository root, so the
+          ;; subject names the archive file the way `git log --stat' would.
+          (cl-letf (((symbol-function 'dm-org-persist-repository)
+                     (lambda () directory)))
+            (dm-org-agenda-persist-tests--goto "Water plants")
+            (org-agenda-archive)
+            (let ((event (car (dm-org-agenda-persist-tests--events))))
+              (should (equal "archive" (alist-get 'type (plist-get event :data))))
+              (should (equal "Archive \"Water plants\" Current Tasks → archive/tasks.org_archive"
+                             (plist-get event :subject)))
+              ;; The destination is outside `org-agenda-files' and did not
+              ;; exist a moment ago, so nothing but `:files' can stage it.
+              (should (member (file-truename archive)
+                              (mapcar #'file-truename (plist-get event :files))))
+              (should (file-regular-p archive))))
+        (when-let* ((buffer (get-file-buffer archive)))
+          (with-current-buffer buffer (set-buffer-modified-p nil))
+          (kill-buffer buffer))))))
+
+(ert-deftest dm-org-agenda-persist-e2e/records-an-archive-to-the-sibling ()
+  ;; `org-archive-to-archive-sibling' runs no hook, so this is the one archive
+  ;; whose destination the advice supplies rather than observes.
+  (dm-org-agenda-persist-tests--with-agenda
+    (dm-org-agenda-persist-tests--goto "Water plants")
+    (org-agenda-archive-to-archive-sibling)
+    (should (equal '("Archive \"Water plants\" Current Tasks → Archive")
+                   (dm-org-agenda-persist-tests--subjects)))
+    ;; Nothing left the file, so nothing beyond it needs staging.
+    (should (equal (list file)
+                   (plist-get (car (dm-org-agenda-persist-tests--events)) :files)))))
 
 (ert-deftest dm-org-agenda-persist-e2e/records-a-day-shift-as-a-reschedule ()
   ;; `L' in the agenda under evil-org-agenda.  This is the command that
