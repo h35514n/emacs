@@ -1,4 +1,4 @@
-;;; dm-org-persist.el --- Commit Org agenda mutations to Git  -*- lexical-binding: t; -*-
+;;; dm-org-persist.el --- Commit Org mutations to Git  -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -13,12 +13,20 @@
 ;;                    (old . "2026-08-31") (new . "2026-09-02"))
 ;;            :files '("/home/me/Org/tasks.org")))
 ;;
-;; `dm-org-agenda-persist' is the semantic half that produces those events.
+;; Two modules produce those events.  `dm-org-agenda-persist' watches the
+;; agenda and describes what a command did to the plan; `dm-org-file-persist'
+;; watches saving and describes what happened to a file under `org-directory'.
 ;;
-;; Why events rather than a hook on saving or on `org-agenda-finalize-hook':
-;; a refresh is a presentation event.  Redrawing the agenda says nothing about
-;; the plan, so nothing here keys off it.  Only a caller asserting that a
-;; domain mutation happened can start a commit.
+;; Why events rather than a hook of this module's own: a refresh is a
+;; presentation event.  Redrawing the agenda says nothing about the plan, so
+;; nothing here keys off it.  Only a caller asserting that something changed
+;; can start a commit.
+;;
+;; That is a statement about where the judgment lives, not a ban on hooks.
+;; Saving a file is itself such an assertion -- the file on disk is not what it
+;; was -- which is why `dm-org-file-persist' can make one from
+;; `after-save-hook' while `dm-org-agenda-persist' has to synthesize one from a
+;; before-and-after pair bracketing a command.
 ;;
 ;; Why the work is deferred:
 ;;
@@ -31,10 +39,17 @@
 ;; carrying one record per event.  The coalescing is also what makes the loop
 ;; case correct for free: N nested invocations produce N events and one commit.
 ;;
-;; A consequence worth knowing: a hand edit to an Org file inside the debounce
-;; window rides along in that commit without being named in the message.  The
-;; change is real and belongs in history, so it is committed rather than
-;; dropped, but the message will not describe it.
+;; Coalescing has a consequence worth knowing.  A hand edit made inside the
+;; debounce window rides along in whatever commit the window belongs to.  With
+;; `dm-org-file-persist' loaded that edit names itself, because saving it queues
+;; an event of its own; without it, or for a file that module does not watch,
+;; the change is still committed -- it is real and belongs in history -- but the
+;; message will not describe it.
+;;
+;; The reverse case is `dm-org-persist-relevant-events'.  An event marked
+;; `:generic' says only that a file changed, and when a second event in the same
+;; batch describes that same file in domain terms, the generic one would add a
+;; line saying less about the same thing.  It is dropped.
 ;;
 ;; Why metadata is JSON:
 ;;
@@ -364,7 +379,7 @@ regardless of count."
          (single (= 1 (length subjects)))
          (subject (if single
                       (car subjects)
-                    (format "%d agenda changes" (length subjects))))
+                    (format "%d Org changes" (length subjects))))
          (body (unless single
                  (mapconcat (lambda (line) (concat "- " line)) subjects "\n")))
          (trailers (when dm-org-persist-commit-metadata
@@ -508,6 +523,9 @@ EVENT is a plist:
   :data     an alist of metadata, emitted as an `Org-Event:' trailer.
   :files    absolute paths the mutation touched beyond `org-agenda-files',
             such as a refile destination outside the agenda set.
+  :generic  non-nil when the event knows only that a file changed, and
+            should yield to any event describing the same file in domain
+            terms.  See `dm-org-persist-relevant-events'.
 
 The commit does not happen here.  Events accumulate until
 `dm-org-persist-debounce-seconds' of quiet, so a burst of agenda commands
@@ -518,10 +536,57 @@ becomes one commit."
     (setq dm-org-persist--timer
           (run-with-timer dm-org-persist-debounce-seconds nil #'dm-org-persist-flush))))
 
+(defvar dm-org-persist--saving nil
+  "Non-nil while `dm-org-persist--save' is writing Org buffers to disk.")
+
+(defun dm-org-persist-saving-p ()
+  "Return non-nil while this module is saving Org buffers itself.
+
+`org-save-all-org-buffers' runs `after-save-hook' for every buffer it
+writes, so a producer keyed on that hook -- `dm-org-file-persist' -- would
+otherwise read the flush's own save as a fresh edit.  That would re-arm the
+debounce timer from inside the flush, and on a `retry' outcome would add one
+duplicate event per attempt, forever."
+  dm-org-persist--saving)
+
+(defun dm-org-persist-relevant-events (events)
+  "Return EVENTS with redundant generic events removed.
+
+An event carrying `:generic' asserts only that a file changed.  When
+another event in the same batch describes that same file in domain terms
+-- \"Mark \\=`Water plants\\=' DONE\" rather than \"Edit org/tasks.org\" --
+the generic event contributes a line that says less about the same change,
+so it is dropped.
+
+This is the common case rather than an edge.  `dm-org' advises eleven
+agenda commands with `:after #\\='dm-org-agenda-save-all-files--h', so an
+instrumented command saves its own file from inside the advice that is
+describing it, and a producer on `after-save-hook' sees that save.
+Resolving it here rather than at the producer keeps the rule independent of
+which advice happens to nest outside which.
+
+Staging is unaffected: a dropped event's files are named by the event that
+displaced it, so `dm-org-persist--managed-files' returns the same set."
+  (let ((described (make-hash-table :test #'equal)))
+    (dolist (event events)
+      (unless (plist-get event :generic)
+        (dolist (file (plist-get event :files))
+          (puthash (file-truename file) t described))))
+    (seq-filter
+     (lambda (event)
+       (not (and (plist-get event :generic)
+                 (plist-get event :files)
+                 (seq-every-p (lambda (file)
+                                (gethash (file-truename file) described))
+                              (plist-get event :files)))))
+     events)))
+
 (defun dm-org-persist--save ()
   "Save modified Org buffers.  Return non-nil on success."
   (condition-case err
-      (progn (org-save-all-org-buffers) t)
+      (let ((dm-org-persist--saving t))
+        (org-save-all-org-buffers)
+        t)
     (error
      (dm-org-persist--warn "Not committing: saving Org buffers failed: %s"
                            (error-message-string err))
@@ -545,7 +610,8 @@ for the queue."
       'retry)
      ((not (dm-org-persist--save)) 'retry)
      (t
-      (let* ((events (reverse dm-org-persist--events))
+      (let* ((events (dm-org-persist-relevant-events
+                      (reverse dm-org-persist--events)))
              (files (dm-org-persist--managed-files repo events)))
         (if (null files)
             (progn (dm-org-persist--warn "No managed Org files to stage in %s"

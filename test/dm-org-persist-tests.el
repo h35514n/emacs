@@ -79,7 +79,7 @@
                          dm-org-persist-tests--schedule-event
                          dm-org-persist-tests--refile-event)))
          (lines (split-string message "\n")))
-    (should (equal "3 agenda changes" (nth 0 lines)))
+    (should (equal "3 Org changes" (nth 0 lines)))
     (should (equal "- Mark \"Review authentication design\" DONE" (nth 2 lines)))
     (should (equal "- Reschedule \"Submit application\" 2026-08-31 → 2026-09-02" (nth 3 lines)))
     (should (equal "- Refile \"Research API pricing\" Inbox → Mallard" (nth 4 lines)))
@@ -131,6 +131,98 @@
 (ert-deftest dm-org-persist-message/event-without-a-subject-still-commits ()
   (let ((dm-org-persist-commit-metadata nil))
     (should (equal "Update Org agenda" (dm-org-persist-message '((:data ((type . "todo")))))))))
+
+;;; ————————————————————————————
+;;; Redundant generic events
+;;; ————————————————————————————
+
+(defconst dm-org-persist-tests--tasks "/tmp/knowledge/org/tasks.org"
+  "A file two events can both name.  Never read or written.")
+
+(defconst dm-org-persist-tests--notes "/tmp/knowledge/org/notes/reading.md")
+
+(defconst dm-org-persist-tests--semantic
+  (list :subject "Mark \"Water plants\" DONE"
+        :data '((type . "todo"))
+        :files (list dm-org-persist-tests--tasks))
+  "An event that describes a change to tasks.org in domain terms.")
+
+(defconst dm-org-persist-tests--generic-tasks
+  (list :subject "Edit org/tasks.org"
+        :data '((type . "file"))
+        :files (list dm-org-persist-tests--tasks)
+        :generic t)
+  "The same file, described only as having been saved.")
+
+(defconst dm-org-persist-tests--generic-notes
+  (list :subject "Edit org/notes/reading.md"
+        :data '((type . "file"))
+        :files (list dm-org-persist-tests--notes)
+        :generic t))
+
+(ert-deftest dm-org-persist-relevant-events/drops-a-generic-event-already-described ()
+  ;; The agenda case: `dm-org' saves tasks.org from inside the advice that is
+  ;; describing the same change, so both events reach one batch.
+  (should (equal (list dm-org-persist-tests--semantic)
+                 (dm-org-persist-relevant-events
+                  (list dm-org-persist-tests--generic-tasks
+                        dm-org-persist-tests--semantic)))))
+
+(ert-deftest dm-org-persist-relevant-events/drops-it-whichever-order-it-arrived-in ()
+  ;; Which of the two lands first depends on how the advice happens to nest.
+  (should (equal (list dm-org-persist-tests--semantic)
+                 (dm-org-persist-relevant-events
+                  (list dm-org-persist-tests--semantic
+                        dm-org-persist-tests--generic-tasks)))))
+
+(ert-deftest dm-org-persist-relevant-events/keeps-a-generic-event-for-another-file ()
+  (should (equal (list dm-org-persist-tests--semantic
+                       dm-org-persist-tests--generic-notes)
+                 (dm-org-persist-relevant-events
+                  (list dm-org-persist-tests--semantic
+                        dm-org-persist-tests--generic-notes)))))
+
+(ert-deftest dm-org-persist-relevant-events/keeps-a-batch-of-only-generic-events ()
+  (let ((events (list dm-org-persist-tests--generic-tasks
+                      dm-org-persist-tests--generic-notes)))
+    (should (equal events (dm-org-persist-relevant-events events)))))
+
+(ert-deftest dm-org-persist-relevant-events/keeps-a-generic-event-naming-nothing ()
+  ;; Nothing displaced it, so nothing licenses dropping it.
+  (let ((events (list dm-org-persist-tests--semantic
+                      '(:subject "Something happened" :generic t))))
+    (should (equal events (dm-org-persist-relevant-events events)))))
+
+(ert-deftest dm-org-persist-relevant-events/leaves-an-ordinary-batch-alone ()
+  (let ((events (list dm-org-persist-tests--todo-event
+                      dm-org-persist-tests--schedule-event
+                      dm-org-persist-tests--refile-event)))
+    (should (equal events (dm-org-persist-relevant-events events)))))
+
+;;; ————————————————————————————
+;;; Saving
+;;; ————————————————————————————
+
+(ert-deftest dm-org-persist-saving-p/is-set-only-while-this-module-saves ()
+  ;; `dm-org-file-persist' reads this to tell the flush's own save apart from
+  ;; an edit.  Without it, saving inside the flush would queue fresh events.
+  (should-not (dm-org-persist-saving-p))
+  (let ((observed 'unset))
+    (cl-letf (((symbol-function 'org-save-all-org-buffers)
+               (lambda () (setq observed (dm-org-persist-saving-p)))))
+      (should (dm-org-persist--save)))
+    (should (eq t observed)))
+  (should-not (dm-org-persist-saving-p)))
+
+(ert-deftest dm-org-persist-saving-p/is-unset-again-after-a-failed-save ()
+  (let ((warnings nil))
+    (cl-letf (((symbol-function 'org-save-all-org-buffers)
+               (lambda () (error "Disk on fire")))
+              ((symbol-function 'display-warning)
+               (lambda (&rest args) (push args warnings))))
+      (should-not (dm-org-persist--save)))
+    (should warnings))
+  (should-not (dm-org-persist-saving-p)))
 
 ;;; ————————————————————————————
 ;;; A throwaway Git repository
@@ -370,10 +462,35 @@ signing settings cannot leak into the suite."
     (dm-org-persist dm-org-persist-tests--refile-event)
     (dm-org-persist-flush)
     (should (= 2 (dm-org-persist-tests--commits repo)))
-    (should (equal "3 agenda changes"
+    (should (equal "3 Org changes"
                    (dm-org-persist-tests--run repo "log" "-1" "--format=%s")))
     ;; Events keep the order they happened in, not the order they were pushed.
     (should (equal '("todo" "scheduled" "refile")
+                   (mapcar (lambda (line)
+                             (alist-get 'type (json-parse-string line :object-type 'alist)))
+                           (split-string
+                            (dm-org-persist-tests--run
+                             repo "log" "-1" "--format=%(trailers:key=Org-Event,valueonly)")
+                            "\n" t))))))
+
+(ert-deftest dm-org-persist/a-generic-event-yields-to-the-change-it-duplicates ()
+  (dm-org-persist-tests--with-repo
+    (dm-org-persist-tests--write repo "org/tasks.org" "* DONE Water plants\n")
+    (let ((tasks (expand-file-name "org/tasks.org" repo)))
+      ;; The order the agenda produces: `dm-org' saves from inside the advice
+      ;; that is describing the change, so the generic event is queued first.
+      (dm-org-persist (list :subject "Edit org/tasks.org"
+                            :data '((type . "file"))
+                            :files (list tasks)
+                            :generic t))
+      (dm-org-persist (append dm-org-persist-tests--todo-event
+                              (list :files (list tasks)))))
+    (dm-org-persist-flush)
+    (should (= 2 (dm-org-persist-tests--commits repo)))
+    ;; Not "2 Org changes": one of them said less about the same file.
+    (should (equal "Mark \"Review authentication design\" DONE"
+                   (dm-org-persist-tests--run repo "log" "-1" "--format=%s")))
+    (should (equal '("todo")
                    (mapcar (lambda (line)
                              (alist-get 'type (json-parse-string line :object-type 'alist)))
                            (split-string

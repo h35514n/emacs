@@ -103,7 +103,7 @@ A passing suite prints one line; a failing one prints the form that
 failed and why. `-v` prints everything ERT emits. The exit status is
 non-zero if any suite had an unexpected result.
 
-Four of the five suites need Org on the load path for their end-to-end
+Four of the six suites need Org on the load path for their end-to-end
 tests, which `bin/test` derives from `dm-data-home` in `early-init.el`;
 set `ORG_LOAD_PATH` to point it somewhere else.
 

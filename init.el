@@ -40,6 +40,7 @@
 (require 'dm-org-agenda-capacity)
 (require 'dm-org-persist)
 (require 'dm-org-agenda-persist)
+(require 'dm-org-file-persist)
 (require 'dm-org-agenda-plan)
 (require 'dm-langs)
 (require 'dm-keys)

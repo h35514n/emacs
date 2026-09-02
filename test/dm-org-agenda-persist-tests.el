@@ -329,6 +329,12 @@
 (require 'org-agenda)
 (require 'org-archive)
 
+(defconst dm-org-agenda-persist-tests--day "2026-08-31"
+  "The one day these tests take place on.
+
+The fixture Org file, the agenda\='s start day, and the stubbed `org-today'
+all sit on it, so nothing here depends on when the suite is run.")
+
 (defconst dm-org-agenda-persist-tests--file-contents
   "#+TITLE: Tasks
 #+TODO: TODO(t) WIP(w) | DONE(d) CANCELED(c)
@@ -346,7 +352,7 @@ DEADLINE: <2026-08-31 Mon>
 <2026-08-31 Mon 14:00>
 * Mallard
 "
-  "Fixture Org file, with every entry scheduled on one pinned day.")
+  "Fixture Org file, with every entry on `dm-org-agenda-persist-tests--day'.")
 
 (defvar dm-org-agenda-persist-tests--captured nil
   "Events the stubbed `dm-org-persist' received.")
@@ -362,7 +368,7 @@ DEADLINE: <2026-08-31 Mon>
           (file (expand-file-name "tasks.org" directory))
           (org-agenda-files (list file))
           (org-agenda-span 1)
-          (org-agenda-start-day "2026-08-31")
+          (org-agenda-start-day dm-org-agenda-persist-tests--day)
           (org-agenda-sticky nil)
           (org-log-done nil)
           (org-log-refile nil)
@@ -379,7 +385,25 @@ DEADLINE: <2026-08-31 Mon>
            (write-region dm-org-agenda-persist-tests--file-contents nil file nil 'silent)
            (dm-org-agenda-persist-install)
            (cl-letf (((symbol-function 'dm-org-persist)
-                      (lambda (event) (push event dm-org-agenda-persist-tests--captured))))
+                      (lambda (event) (push event dm-org-agenda-persist-tests--captured)))
+                     ;; The one date no `let' can pin.  `org-agenda-date-later'
+                     ;; consults `org-today': with
+                     ;; `org-agenda-move-date-from-past-immediately-to-today' at
+                     ;; its default, the first forward shift of a *past* date
+                     ;; jumps to today rather than to the following day.  Left
+                     ;; unpinned, the day-shift tests therefore assert one thing
+                     ;; while the fixture's day is still current and another once
+                     ;; it falls into the past -- which is how they came to fail.
+                     ;; Pinning today to the fixture's own day is also what makes
+                     ;; it agree with `org-agenda-start-day'.  Same lever, and
+                     ;; same reason, as the TODAY argument of
+                     ;; `dm-org-agenda-capacity-tests--with-agenda-on' and
+                     ;; `dm-org-repeat-days-tests--completing-on'.
+                     ((symbol-function 'org-today)
+                      (lambda ()
+                        (time-to-days
+                         (org-time-string-to-time
+                          dm-org-agenda-persist-tests--day)))))
              (save-window-excursion
                (org-agenda-list)
                (with-current-buffer org-agenda-buffer-name
@@ -517,6 +541,20 @@ DEADLINE: <2026-08-31 Mon>
     (should (equal "scheduled"
                    (alist-get 'type (plist-get (car (dm-org-agenda-persist-tests--events))
                                                :data))))))
+
+(ert-deftest dm-org-agenda-persist-e2e/records-where-an-overdue-date-actually-landed ()
+  ;; `org-agenda-move-date-from-past-immediately-to-today' is on by default, so
+  ;; the first `L' on an overdue item lands on today rather than one day later.
+  ;; The describer reports where the date went, not where the keystroke aimed --
+  ;; and this is the case the suite used to exercise by accident, on any day the
+  ;; fixture's date had fallen into the past.
+  (dm-org-agenda-persist-tests--with-agenda
+    (cl-letf (((symbol-function 'org-today)
+               (lambda () (time-to-days (org-time-string-to-time "2026-09-10")))))
+      (dm-org-agenda-persist-tests--goto "Water plants")
+      (org-agenda-do-date-later 1)
+      (should (equal '("Reschedule \"Water plants\" 2026-08-31 → 2026-09-10")
+                     (dm-org-agenda-persist-tests--subjects))))))
 
 (ert-deftest dm-org-agenda-persist-e2e/records-a-backward-day-shift ()
   (dm-org-agenda-persist-tests--with-agenda

@@ -460,6 +460,10 @@ Nothing is written; the proposal opens in a preview buffer.
 (register-definition-prefixes "dm-org-persist" '("dm-org-"))
 
 
+;;; Generated autoloads from dm-org-file-persist.el
+
+(register-definition-prefixes "dm-org-file-persist" '("dm-org-file-persist-"))
+
 ;;; End of scraped data
 
 (provide 'loaddefs)
