@@ -146,7 +146,7 @@ Usable interactively or as :after advice on agenda-mutating commands."
                           ""))
   (org-agenda-view-columns-initially nil)
   (org-agenda-window-setup 'only-window)
-  (org-sort-agenda-notime-is-late nil)
+  (org-sort-agenda-notime-is-late t)
   (org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %SCHEDULED(Sched) %6Effort(Effort){:} %50ITEM(Task)")
   (org-columns-modify-value-for-display-function #'dm-org-column-display-value)
   (org-deadline-warning-days 7)
