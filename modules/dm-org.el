@@ -104,6 +104,16 @@ Usable interactively or as :after advice on agenda-mutating commands."
   (org-save-all-org-buffers))
 
 (defun dm-org-column-display-value (column-title value)
+  "Customize how Org column-view values are displayed.
+
+Hide the default priority value in the \"Pri\" column.
+Display only the time portion of scheduled timestamps in the
+\"Sched\" column.
+Append the current heading's local tags to the value shown in
+the \"Task\" column.
+
+COLUMN-TITLE is the display title of the current column, and
+VALUE is the value Org would otherwise display."
   (cond
    ;; Hide the default priority.
    ((string= column-title "Pri")
@@ -116,6 +126,17 @@ Usable interactively or as :after advice on agenda-mutating commands."
     (if (string-match "\\b\\([0-9]\\{1,2\\}:[0-9]\\{2\\}\\)\\b" value)
         (match-string 1 value)
       ""))
+   ;; Append local tags to the task headline.
+   ((and (string= column-title "Task")
+         value)
+    (let ((tags (org-get-tags nil t)))
+      (if tags
+          (concat value
+                  " "
+                  (propertize
+                   (concat ":" (string-join tags ":") ":")
+                   'face 'org-tag))
+        value)))
    ;; Don't modify other columns.
    (t value)))
 
@@ -151,6 +172,7 @@ Usable interactively or as :after advice on agenda-mutating commands."
   (org-columns-default-format "%TODO(State) %3PRIORITY(Pri) %SCHEDULED(Sched) %6Effort(Effort){:} %50ITEM(Task)")
   (org-columns-modify-value-for-display-function #'dm-org-column-display-value)
   (org-deadline-warning-days 7)
+  (org-agenda-tags-column 1)
   (org-agenda-prefix-format '((agenda . "[%4e] %5t ")
                               (todo   . "  %-12:c")
                               (tags   . "  %-12:c")
