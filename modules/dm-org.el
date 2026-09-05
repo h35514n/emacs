@@ -96,6 +96,21 @@
 (defun dm-org-agenda-save-all-files--h (&rest _)
   (org-save-all-org-buffers))
 
+(defun dm-org-agenda-set-effort (effort)
+  "Set EFFORT on the agenda entry at point."
+  (let ((marker (or (org-get-at-bol 'org-hd-marker)
+                    (org-agenda-error))))
+    (org-with-point-at marker
+      (org-back-to-heading t)
+      (org-set-effort nil effort))))
+
+(defun dm-org-agenda-read-effort ()
+  "Read an effort value once for a bulk agenda operation."
+  (let ((effort (read-string "Effort: ")))
+    ;; Validate it before changing any entries.
+    (org-duration-to-minutes effort)
+    (list effort)))
+
 ;;;###autoload
 (defun dm-org-agenda-save-all-files (&rest _)
   "Save all Org buffers.
@@ -178,6 +193,10 @@ VALUE is the value Org would otherwise display."
                               (tags   . "  %-12:c")
                               (search . "  %-12:c")))
   :config
+  ;; add bulk effort commands to org-agenda-bulk functions
+  (add-to-list 'org-agenda-bulk-custom-functions
+               '(?e dm-org-agenda-set-effort dm-org-agenda-read-effort))
+
   ;; Custom command: completed tasks in the past week.
   (add-to-list
    'org-agenda-custom-commands
@@ -285,6 +304,19 @@ agenda file, cycle as usual by one step in the chosen direction."
                  (time-add (date-to-time current-date)
                            (days-to-time 1))))))
      nil 'tree)))
+
+;;;###autoload
+(defun dm-org-set-effort-in-bulk (effort)
+  "Set EFFORT on every Org heading in the active region."
+  (interactive (list (read-string "Effort: ")))
+  (org-duration-to-minutes effort) ; validate
+  (unless (use-region-p)
+    (user-error "Select a region containing the headings first"))
+  (org-map-entries
+   (lambda ()
+     (org-set-property "EFFORT" effort))
+   nil
+   'region))
 
 ;;;###autoload
 (defun dm-org-set-effort-on-subtree (effort)

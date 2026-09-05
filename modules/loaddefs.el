@@ -185,6 +185,10 @@ agenda file, cycle as usual by one step in the chosen direction.
 "Set scheduled dates for all headings of the TARGET-LEVEL in subtree, starting from START-DATE.
 
 (fn START-DATE TARGET-LEVEL)" t)
+(autoload 'dm-org-set-effort-in-bulk "dm-org"
+"Set EFFORT on every Org heading in the active region.
+
+(fn EFFORT)" t)
 (autoload 'dm-org-set-effort-on-subtree "dm-org"
 "Bulk set EFFORT property on all subheadings of the current tree.
 
@@ -400,7 +404,6 @@ Must be called in an Org agenda buffer.
 
 (fn DATE)")
 (register-definition-prefixes "dm-org-agenda-capacity" '("dm-org-"))
-
 
 
 ;;; Generated autoloads from dm-org-agenda-persist.el
