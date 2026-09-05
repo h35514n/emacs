@@ -48,15 +48,23 @@
 ;; Known cosmetic wart: Org's "Entry repeats: ..." echo is composed before the
 ;; hook runs, so on an adjusted entry it names the pre-adjustment date.  The
 ;; buffer is correct.
+;;
+;; A client such as a mobile Org app cannot run the Emacs hook and may advance
+;; a timestamp onto a disallowed day.  After `dm-org-persist' pulls such an
+;; edit, this module scans the agenda files in that repository, applies the
+;; same adjustment to every affected entry, and saves only files that changed.
+;; The pass is idempotent: once every timestamp is allowed, it changes nothing.
 
 ;;; Code:
 
 (declare-function calendar-day-of-week "calendar" (date))
 (declare-function org-at-planning-p "org" ())
+(declare-function org-agenda-files "org" (&optional unrestricted archives))
 (declare-function org-back-to-heading "org" (&optional invisible-ok))
 (declare-function org-entry-get "org" (epom property &optional inherit literal-nil))
 (declare-function org-get-heading "org" (&optional no-tags no-todo no-priority no-comment))
 (declare-function org-get-repeat "org" (&optional timestamp))
+(declare-function org-map-entries "org" (func &optional match scope &rest skip))
 (declare-function org-parse-time-string "org-macs" (s &optional nodefault))
 (declare-function org-timestamp-change "org" (n &optional what updown suppress-tmp-delay))
 (defvar org-scheduled-time-regexp)
@@ -132,19 +140,22 @@ nil when ALLOWED is empty."
 ;;; ————————————————————————————
 
 (defun dm-org-repeat-days--shift-scheduled (days)
-  "Move the SCHEDULED timestamp of the entry at point forward by DAYS."
+  "Move the SCHEDULED timestamp at point forward by DAYS.
+Return non-nil when a timestamp was changed."
   (save-excursion
     (org-back-to-heading t)
     (forward-line 1)
     (when (and (org-at-planning-p)
                (re-search-forward org-scheduled-time-regexp (line-end-position) t))
       (goto-char (match-beginning 1))
-      (org-timestamp-change days 'day))))
+      (org-timestamp-change days 'day)
+      t)))
 
 (defun dm-org-repeat-days--adjust-h ()
   "Pull the just-repeated SCHEDULED date forward onto an allowed weekday.
 Meant for `org-todo-repeat-hook'; a no-op unless the entry sets
-`dm-org-repeat-days-property' and has a repeating SCHEDULED timestamp."
+`dm-org-repeat-days-property' and has a repeating SCHEDULED timestamp.
+Return non-nil when the timestamp was changed."
   (save-excursion
     (org-back-to-heading t)
     (let ((spec (org-entry-get (point) dm-org-repeat-days-property 'selective))
@@ -152,18 +163,67 @@ Meant for `org-todo-repeat-hook'; a no-op unless the entry sets
       (when (and spec scheduled (org-get-repeat scheduled))
         (let ((allowed (dm-org-repeat-days-parse spec)))
           (if (null allowed)
-              (display-warning
-               'dm-org-repeat-days
-               (format "Ignoring unparseable %s value %S on %S"
-                       dm-org-repeat-days-property spec
-                       (org-get-heading t t t t))
-               :warning)
+              (progn
+                (display-warning
+                 'dm-org-repeat-days
+                 (format "Ignoring unparseable %s value %S on %S"
+                         dm-org-repeat-days-property spec
+                         (org-get-heading t t t t))
+                 :warning)
+                nil)
             (let ((offset (dm-org-repeat-days-adjustment scheduled allowed)))
               (when (> offset 0)
                 (dm-org-repeat-days--shift-scheduled offset)))))))))
 
+(defun dm-org-repeat-days-reconcile-buffer ()
+  "Constrain every repeating SCHEDULED timestamp in the current Org buffer.
+
+This repairs timestamps advanced by clients that do not run
+`org-todo-repeat-hook'.  Return the number of entries changed.  The caller
+owns saving the buffer."
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Current buffer is not an Org buffer"))
+  (let ((changed 0))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (org-map-entries
+         (lambda ()
+           (when (dm-org-repeat-days--adjust-h)
+             (setq changed (1+ changed))))
+         nil nil)))
+    changed))
+
+(defun dm-org-repeat-days-reconcile-after-pull (repo)
+  "Reconcile unmodified agenda files under pulled repository REPO.
+
+Files containing an out-of-policy repeating timestamp are saved so the
+normal persistence path can commit the repair.  Buffers with unsaved user
+edits are left alone.  Return the number of entries changed, or nil when no
+change was needed."
+  (let ((root (file-name-as-directory (file-truename repo)))
+        (changed 0))
+    (dolist (file (org-agenda-files t))
+      (when (and (file-regular-p file)
+                 (string-prefix-p root (file-truename file)))
+        (with-current-buffer (find-file-noselect file)
+          (when (and (derived-mode-p 'org-mode)
+                     (not (buffer-modified-p)))
+            (let ((file-changes (dm-org-repeat-days-reconcile-buffer)))
+              (when (> file-changes 0)
+                (setq changed (+ changed file-changes))
+                (save-buffer)))))))
+    (when (> changed 0)
+      (message "Adjusted %d repeating Org entr%s to allowed days"
+               changed (if (= changed 1) "y" "ies")))
+    (and (> changed 0) changed)))
+
 (with-eval-after-load 'org
   (add-hook 'org-todo-repeat-hook #'dm-org-repeat-days--adjust-h))
+
+(with-eval-after-load 'dm-org-persist
+  (add-hook 'dm-org-persist-after-pull-hook
+            #'dm-org-repeat-days-reconcile-after-pull))
 
 (provide 'dm-org-repeat-days)
 ;;; dm-org-repeat-days.el ends here

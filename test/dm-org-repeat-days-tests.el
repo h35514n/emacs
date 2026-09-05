@@ -329,5 +329,121 @@ DEADLINE: <2026-09-02 Wed ++1d> SCHEDULED: <2026-09-02 Wed ++1d>
     (should (equal "<2026-09-04 Fri ++1d>" (dm-org-repeat-days-tests--scheduled)))
     (should (equal "<2026-09-03 Thu ++1d>" (org-entry-get (point-min) "DEADLINE")))))
 
+;;; ————————————————————————————
+;;; Reconciliation of changes made by other Org clients
+;;; ————————————————————————————
+
+(ert-deftest dm-org-repeat-days-reconcile-buffer/repairs-imported-repeat ()
+  ;; This is the shape beorg leaves after completing the Friday occurrence:
+  ;; its ordinary ++1d handling advances to Saturday, but it does not know the
+  ;; custom REPEAT_DAYS property.
+  (with-temp-buffer
+    (org-mode)
+    (insert "* TODO Sermorelin & Reading :health:
+SCHEDULED: <2026-09-05 Sat 20:30 ++1d>
+:PROPERTIES:
+:REPEAT_DAYS: weekdays
+:LAST_REPEAT: [2026-09-04 Fri 20:00]
+:END:
+")
+    (set-buffer-modified-p nil)
+    (should (= 1 (dm-org-repeat-days-reconcile-buffer)))
+    (should (equal "<2026-09-07 Mon 20:30 ++1d>"
+                   (dm-org-repeat-days-tests--scheduled)))
+    (should (buffer-modified-p))
+    ;; Running the pass again is a no-op, including at the buffer level.
+    (set-buffer-modified-p nil)
+    (should (= 0 (dm-org-repeat-days-reconcile-buffer)))
+    (should-not (buffer-modified-p))))
+
+(ert-deftest dm-org-repeat-days-reconcile-buffer/adjusts-each-eligible-entry ()
+  (with-temp-buffer
+    (org-mode)
+    (insert "* TODO Imported tasks
+** TODO Saturday
+SCHEDULED: <2026-09-05 Sat ++1d>
+:PROPERTIES:
+:REPEAT_DAYS: weekdays
+:END:
+** TODO Monday
+SCHEDULED: <2026-09-07 Mon ++1d>
+:PROPERTIES:
+:REPEAT_DAYS: weekdays
+:END:
+** TODO No repeater
+SCHEDULED: <2026-09-05 Sat>
+:PROPERTIES:
+:REPEAT_DAYS: weekdays
+:END:
+")
+    (should (= 1 (dm-org-repeat-days-reconcile-buffer)))
+    (goto-char (point-min))
+    (re-search-forward "^\\*\\* TODO Saturday")
+    (should (equal "<2026-09-07 Mon ++1d>" (org-entry-get nil "SCHEDULED")))
+    (re-search-forward "^\\*\\* TODO Monday")
+    (should (equal "<2026-09-07 Mon ++1d>" (org-entry-get nil "SCHEDULED")))
+    (re-search-forward "^\\*\\* TODO No repeater")
+    (should (equal "<2026-09-05 Sat>" (org-entry-get nil "SCHEDULED")))))
+
+(ert-deftest dm-org-repeat-days-reconcile-after-pull/saves-repaired-agenda-file ()
+  (let* ((repo (file-name-as-directory
+                (file-truename (make-temp-file "dm-org-repeat-days-pull-" t))))
+         (file (expand-file-name "tasks.org" repo))
+         (org-agenda-files (list file))
+         buffer)
+    (unwind-protect
+        (progn
+          (write-region "* TODO Imported
+SCHEDULED: <2026-09-05 Sat 20:30 ++1d>
+:PROPERTIES:
+:REPEAT_DAYS: weekdays
+:END:
+" nil file nil 'silent)
+          (should (= 1 (dm-org-repeat-days-reconcile-after-pull repo)))
+          (setq buffer (find-buffer-visiting file))
+          (should buffer)
+          (should-not (buffer-modified-p buffer))
+          (with-temp-buffer
+            (insert-file-contents file)
+            (should (search-forward "<2026-09-07 Mon 20:30 ++1d>" nil t)))
+          (should-not (dm-org-repeat-days-reconcile-after-pull repo)))
+      (when (buffer-live-p buffer)
+        (kill-buffer buffer))
+      (delete-directory repo t))))
+
+(ert-deftest dm-org-repeat-days-reconcile-after-pull/preserves-unsaved-work ()
+  (let* ((repo (file-name-as-directory
+                (file-truename (make-temp-file "dm-org-repeat-days-pull-" t))))
+         (file (expand-file-name "tasks.org" repo))
+         (org-agenda-files (list file))
+         buffer)
+    (unwind-protect
+        (progn
+          (write-region "* TODO Imported
+SCHEDULED: <2026-09-05 Sat ++1d>
+:PROPERTIES:
+:REPEAT_DAYS: weekdays
+:END:
+" nil file nil 'silent)
+          (setq buffer (find-file-noselect file))
+          (with-current-buffer buffer
+            (goto-char (point-max))
+            (insert "Unsaved note\n"))
+          (should-not (dm-org-repeat-days-reconcile-after-pull repo))
+          (with-current-buffer buffer
+            (goto-char (point-min))
+            (should (search-forward "<2026-09-05 Sat ++1d>" nil t))
+            (should (buffer-modified-p))))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer (set-buffer-modified-p nil))
+        (kill-buffer buffer))
+      (delete-directory repo t))))
+
+(require 'dm-org-persist)
+
+(ert-deftest dm-org-repeat-days-reconcile-after-pull/is-installed ()
+  (should (memq #'dm-org-repeat-days-reconcile-after-pull
+                dm-org-persist-after-pull-hook)))
+
 (provide 'dm-org-repeat-days-tests)
 ;;; dm-org-repeat-days-tests.el ends here

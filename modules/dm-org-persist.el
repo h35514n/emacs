@@ -92,6 +92,13 @@
 ;; may be a mutation still sitting in the debounce queue.  So it commits what
 ;; is queued first, with the auto-push suppressed, and only then rebases -- a
 ;; pending edit belongs in history as a commit, not inside an autostash.
+;; After a successful pull has re-read any files it changed,
+;; `dm-org-persist-after-pull-hook' gives domain modules a chance to reconcile
+;; data written by clients that do not implement the same local extensions.
+;; The hook runs before live agenda buffers are rebuilt, so their next render
+;; sees the reconciled data.  It also runs after an already-up-to-date pull:
+;; that gives a buffer skipped earlier because it held unsaved work a safe
+;; opportunity to catch up later.
 
 ;;; Code:
 
@@ -215,6 +222,16 @@ always reported."
 
 (defvar dm-org-persist--pull-head nil
   "HEAD as it stood when the running pull started.")
+
+(defvar dm-org-persist-after-pull-hook nil
+  "Hook run after every successful pull to reconcile external Org changes.
+
+Each function is called with one argument, the repository root.  This hook
+runs after pulled files have been re-read and before agendas are rebuilt.  It
+also runs when the repository was already current, so previously deferred
+work can be retried.  A function should return non-nil when it changed data;
+hook errors are reported and do not prevent remaining functions or agenda
+buffers from being refreshed.")
 
 (defconst dm-org-persist-push-buffer-name "*dm-org-persist-push*"
   "Buffer holding the output of the most recent `git push'.")
@@ -711,13 +728,29 @@ necessary."
             (ignore-errors
               (revert-buffer 'ignore-auto 'noconfirm 'preserve-modes))))))))
 
-(defun dm-org-persist--refresh-agenda ()
-  "Re-read what the pull changed, then rebuild every live agenda buffer.
+(defun dm-org-persist--run-after-pull-hook (repo)
+  "Run reconciliation hooks for REPO, returning non-nil if any changed data."
+  (let (changed)
+    (run-hook-wrapped
+     'dm-org-persist-after-pull-hook
+     (lambda (function &rest args)
+       (condition-case err
+           (when (apply function args)
+             (setq changed t))
+         (error
+          (display-warning
+           'dm-org-persist
+           (format "Could not reconcile pulled Org files: %s"
+                   (error-message-string err))
+           :warning)))
+       ;; A nil wrapper result tells `run-hook-wrapped' to keep going, even
+       ;; after a function reports that it changed something.
+       nil)
+     repo)
+    changed))
 
-An agenda buffer is a rendering rather than a file, so nothing reverts it:
-without this it keeps showing the plan as it stood before the pull."
-  (let ((repo (dm-org-persist-repository)))
-    (when repo (dm-org-persist--reread-files repo)))
+(defun dm-org-persist--redraw-agendas ()
+  "Rebuild every live agenda buffer."
   (dolist (buffer (buffer-list))
     (when (buffer-live-p buffer)
       (with-current-buffer buffer
@@ -725,6 +758,17 @@ without this it keeps showing the plan as it stood before the pull."
           ;; An agenda built from a command that cannot be replayed will
           ;; signal; a stale agenda is not worth failing a successful pull.
           (ignore-errors (org-agenda-redo)))))))
+
+(defun dm-org-persist--refresh-agenda ()
+  "Re-read and reconcile what the pull changed, then rebuild live agendas.
+
+An agenda buffer is a rendering rather than a file, so nothing reverts it:
+without this it keeps showing the plan as it stood before the pull."
+  (let ((repo (dm-org-persist-repository)))
+    (when repo
+      (dm-org-persist--reread-files repo)
+      (dm-org-persist--run-after-pull-hook repo)))
+  (dm-org-persist--redraw-agendas))
 
 (defun dm-org-persist--start-pull (repo)
   "Start `git pull' in REPO."
@@ -757,9 +801,14 @@ without this it keeps showing the plan as it stood before the pull."
                         0)))
         (if (zerop arrived)
             ;; Nothing arrived, so nothing on disk changed and what is on
-            ;; screen is already right.  Not rebuilding here is what keeps
-            ;; `dm-org-persist-pull-and-redo' down to one rebuild per `g r'.
-            (message "✓ Org agenda already up to date")
+            ;; screen is already right.  Reconciliation still gets a chance
+            ;; to retry work an earlier pull deferred due to unsaved edits.
+            ;; Redraw only if such a retry actually changed something; this
+            ;; normally keeps `dm-org-persist-pull-and-redo' to one rebuild.
+            (progn
+              (message "✓ Org agenda already up to date")
+              (when (dm-org-persist--run-after-pull-hook repo)
+                (dm-org-persist--redraw-agendas)))
           (message "✓ Org agenda pulled (%d new commit%s)"
                    arrived (if (= arrived 1) "" "s"))
           (dm-org-persist--refresh-agenda))
@@ -780,8 +829,8 @@ non-fast-forward anyway.
 
 The pull runs asynchronously; its output collects in
 `dm-org-persist-pull-buffer-name'.  Any live agenda buffer is rebuilt once
-it succeeds, and only if it brought something in.  See
-`dm-org-git-pull-args' for the pull itself."
+it brings something in, or if post-pull reconciliation repairs previously
+deferred external changes.  See `dm-org-git-pull-args' for the pull itself."
   (interactive)
   (let ((repo (dm-org-persist-repository)))
     (cond

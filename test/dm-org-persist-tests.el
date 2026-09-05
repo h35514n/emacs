@@ -619,6 +619,47 @@ signing settings cannot leak into the suite."
 ;;; so there would be nothing left to learn from mocking git out.
 ;;; ————————————————————————————
 
+(ert-deftest dm-org-persist-refresh-agenda/reconciles-before-redraw ()
+  (with-temp-buffer
+    (let* ((agenda (current-buffer))
+           (calls nil)
+           (dm-org-persist-after-pull-hook
+            (list (lambda (repo) (push (list 'reconcile repo) calls)))))
+      (cl-letf (((symbol-function 'dm-org-persist-repository)
+                 (lambda () "/tmp/knowledge/"))
+                ((symbol-function 'dm-org-persist--reread-files)
+                 (lambda (repo) (push (list 'reread repo) calls)))
+                ((symbol-function 'buffer-list) (lambda () (list agenda)))
+                ((symbol-function 'derived-mode-p) (lambda (&rest _) t))
+                ((symbol-function 'org-agenda-redo)
+                 (lambda (&rest _) (push '(redraw) calls))))
+        (dm-org-persist--refresh-agenda))
+      (should (equal '((reread "/tmp/knowledge/")
+                       (reconcile "/tmp/knowledge/")
+                       (redraw))
+                     (nreverse calls))))))
+
+(ert-deftest dm-org-persist-refresh-agenda/contains-reconciliation-errors ()
+  (with-temp-buffer
+    (let ((agenda (current-buffer))
+          (redrawn nil)
+          (warnings nil)
+          (dm-org-persist-after-pull-hook
+           (list (lambda (_repo) (error "Bad imported data")))))
+      (cl-letf (((symbol-function 'dm-org-persist-repository)
+                 (lambda () "/tmp/knowledge/"))
+                ((symbol-function 'dm-org-persist--reread-files) #'ignore)
+                ((symbol-function 'buffer-list) (lambda () (list agenda)))
+                ((symbol-function 'derived-mode-p) (lambda (&rest _) t))
+                ((symbol-function 'org-agenda-redo)
+                 (lambda (&rest _) (setq redrawn t)))
+                ((symbol-function 'display-warning)
+                 (lambda (&rest args) (push args warnings))))
+        (dm-org-persist--refresh-agenda))
+      (should redrawn)
+      (should (= 1 (length warnings)))
+      (should (string-match-p "Bad imported data" (cadar warnings))))))
+
 (defmacro dm-org-persist-tests--with-upstream (&rest body)
   "Run BODY with `repo' on a branch tracking a bare `remote'."
   (declare (indent 0) (debug t))
@@ -672,6 +713,21 @@ Stands in for the same repository being edited on another machine."
       (dm-org-persist-tests--await-pull)
       (should (= (1+ before) (dm-org-persist-tests--commits repo)))
       (should (file-exists-p (expand-file-name "org/notes.org" repo))))))
+
+(ert-deftest dm-org-persist-pull/retries-reconciliation-when-up-to-date ()
+  ;; A prior pull may have skipped a buffer that acquired unsaved edits while
+  ;; git was running.  A later no-op pull is its opportunity to catch up.
+  (dm-org-persist-tests--with-upstream
+    (let* ((reconciled 0)
+           (redrawn 0)
+           (dm-org-persist-after-pull-hook
+            (list (lambda (_repo) (setq reconciled (1+ reconciled)) t))))
+      (cl-letf (((symbol-function 'dm-org-persist--redraw-agendas)
+                 (lambda () (setq redrawn (1+ redrawn)))))
+        (dm-org-persist-pull)
+        (dm-org-persist-tests--await-pull))
+      (should (= 1 reconciled))
+      (should (= 1 redrawn)))))
 
 (ert-deftest dm-org-persist-pull/replays-local-commits-on-top-of-upstream ()
   ;; Rebase, not merge: local work ends up on top of what arrived, and the
