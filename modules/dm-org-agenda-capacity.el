@@ -132,6 +132,28 @@ opts out of capacity accounting."
                                   (integer :tag "End (minutes from midnight)")))
   :group 'dm-org-agenda-capacity)
 
+;; Six hours on weekdays, four on weekends.
+(setq dm-org-daily-capacity
+      '((1 . 360)   ; Monday
+        (2 . 360)   ; Tuesday
+        (3 . 360)   ; Wednesday
+        (4 . 360)   ; Thursday
+        (5 . 360)   ; Friday
+        (6 . 240)   ; Saturday
+        (0 . 240))) ; Sunday
+
+;; Weekend windows are sized to hold the weekend capacity set above with the
+;; same proportional slack the weekdays get: six hours of clock for four hours
+;; of work, as nine holds six.
+(setq dm-org-daily-workday
+      '((1 . (540 . 1080))   ; Monday    09:00-18:00
+        (2 . (540 . 1080))   ; Tuesday   09:00-18:00
+        (3 . (540 . 1080))   ; Wednesday 09:00-18:00
+        (4 . (540 . 1080))   ; Thursday  09:00-18:00
+        (5 . (540 . 1080))   ; Friday    09:00-17:00
+        (6 . (600 . 960))    ; Saturday  10:00-16:00
+        (0 . (600 . 960))))  ; Sunday    10:00-16:00
+
 (defcustom dm-org-agenda-capacity-entry-types
   '("scheduled" "past-scheduled" "deadline" "timestamp" "sexp")
   "Agenda entry types whose EFFORT counts toward a day's planned load.
