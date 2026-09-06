@@ -39,6 +39,11 @@
   :bind (:map tempel-map
          ("C-j" . tempel-next)
          ("C-k" . tempel-previous))
+  :custom
+  ;; The default is the single file <user-emacs-directory>/templates. Point at
+  ;; the directory instead: `tempel-path-templates' globs this, and a bare
+  ;; directory path would be handed to `insert-file-contents' as a file.
+  (tempel-path (expand-file-name "templates/*.eld" user-emacs-directory))
   :init
   (defun dm-tempel-setup-capf ()
     "Add Tempel template expansion before the mode's main CAPF."
