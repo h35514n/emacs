@@ -43,6 +43,7 @@
 (require 'dm-org-file-persist)
 (require 'dm-org-agenda-plan)
 (require 'dm-langs)
+(require 'dm-latex)
 (require 'dm-keys)
 
 (when (dm-util-daemon-is-tty-p)
