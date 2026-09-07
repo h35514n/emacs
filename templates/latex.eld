@@ -117,7 +117,7 @@ latex-mode
  "\\begin{figure}[ht]" n>
  "\\centering" n>
  "\\includegraphics[" (p "options") "]{figures/" (p ".pdf") "}" n>
- "\\caption{\label{fig:" (p "label") "} " p "}" n>
+ "\\caption{\\label{fig:" (p "label") "} " p "}" n>
  "\\end{figure}")
 
 (fr
