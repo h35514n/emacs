@@ -18,10 +18,14 @@
       (back-to-indentation)
       (eolp))
     (dm--indent-or-insert-tab))
-   ;; After a plausible snippet trigger: try Tempel, then indent.
+   ;; After a plausible snippet trigger: try Tempel, then indent. Called
+   ;; interactively, `tempel-expand' signals a `user-error' when nothing matches
+   ;; rather than returning nil, so probe with the Capf form -- which does
+   ;; return nil -- to keep the indent fallback reachable.
    ((looking-back "\\(?:\\sw\\|\\s_\\)+" (line-beginning-position))
-    (or (tempel-expand t)
-        (dm--indent-or-insert-tab)))
+    (if (tempel-expand)
+        (tempel-expand t)
+      (dm--indent-or-insert-tab)))
    (t
     (dm--indent-or-insert-tab))))
 
@@ -61,7 +65,15 @@
   (add-hook 'text-mode-hook #'dm-tab-dwim-setup))
 
 (use-package tempel-collection
-  :after tempel)
+  :after tempel
+  :config
+  ;; `tempel--templates' pushes each source's result onto a list and appends the
+  ;; reversal, so the LAST source in `tempel-template-sources' ends up first and
+  ;; wins `assq' lookups. tempel-collection appends itself on load, which would
+  ;; shadow templates/. Move our own templates back to the end so they win.
+  (setq tempel-template-sources
+        (append (remq 'tempel-path-templates tempel-template-sources)
+                (list 'tempel-path-templates))))
 
 (use-package emmet-mode
   ;; Abbreviation expansion for HTML, CSS, JSX, and TSX buffers.

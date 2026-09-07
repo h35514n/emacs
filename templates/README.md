@@ -25,15 +25,24 @@ Only files filling gaps in `tempel-collection` were taken:
 | `conf-unix.eld`   | collection has no conf-mode coverage                  |
 | `latex.eld`       | 58 templates vs the collection's 27, near-disjoint    |
 
+Templates here take precedence over `tempel-collection`: `dm-snippets.el` moves
+`tempel-path-templates` to the end of `tempel-template-sources`, which is what
+wins lookups (`tempel--templates` appends the reversed source list).
+
 ## Local modifications
 
 `latex.eld` differs from upstream:
 
-- Mode header widened from `latex-mode` to `latex-mode LaTeX-mode`. Belt and
-  braces: AUCTeX already calls `derived-mode-add-parents` to put `latex-mode`
-  in `LaTeX-mode`'s parents, so the bare header would match either way.
-- `begin` and `frac` removed: the only two names that collided with
-  `tempel-collection`'s `latex.eld`, which is otherwise disjoint.
+- `frac` removed: it collided with `tempel-collection`'s `latex.eld`, which is
+  otherwise disjoint.
+- `begin` replaced with a corrected version (see the comment in the file). The
+  collection's puts point in the wrong field under `tempel-expand` and
+  mis-indents `\end` under AUCTeX.
+- Header left as bare `latex-mode`. AUCTeX calls `derived-mode-add-parents` to
+  put `latex-mode` in `LaTeX-mode`'s parents, so this matches under both; adding
+  `LaTeX-mode` explicitly would list every template in this file *twice* for an
+  AUCTeX buffer, since both mode blocks match. `tempel-collection`'s `latex.eld`
+  has that duplication -- its templates show up twice in the `C-.` picker.
 
 Re-check both when syncing from upstream.
 

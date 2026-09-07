@@ -36,6 +36,21 @@
   ;; Leave sub/superscript insertion to cdlatex and laas, which both bind it.
   (TeX-electric-sub-and-superscript nil))
 
+;; Eglot derives the LSP languageId from the major-mode name by stripping
+;; "-mode", without downcasing (see `eglot--language-ids'). AUCTeX's modes are
+;; CamelCase, so `LaTeX-mode' yields "LaTeX". Digestif's translation table is
+;; keyed on lowercase ids only, so it raises "Invalid LSP language id" out of
+;; `textDocument/didOpen', never registers the document, and then fails every
+;; later request with "Trying to access unopened document". Name the ids
+;; explicitly; `eglot--language-ids' consults this property first.
+(dolist (cell '((LaTeX-mode     . "latex")
+                (docTeX-mode    . "doctex")
+                (plain-TeX-mode . "plaintex")
+                (ConTeXt-mode   . "context")
+                (Texinfo-mode   . "texinfo")
+                (TeX-tex-mode   . "tex")))
+  (put (car cell) 'eglot-language-id (cdr cell)))
+
 (defun dm-latex-tempel-tab ()
   "Give TAB back to Tempel when Tempel has something to do.
 
@@ -48,8 +63,13 @@ match, so anything cdlatex would have expanded still reaches it."
    ((bound-and-true-p tempel--active)
     (tempel-next 1)
     t)
+   ;; Called interactively, `tempel-expand' signals a `user-error' when nothing
+   ;; matches rather than returning nil, which would abort `cdlatex-tab' instead
+   ;; of letting it fall through to its own actions. Probe with the Capf form,
+   ;; which returns nil, and only then expand for real.
    ((and (looking-back "\\(?:\\sw\\|\\s_\\)+" (line-beginning-position))
-         (tempel-expand t))
+         (tempel-expand))
+    (tempel-expand t)
     t)))
 
 (use-package cdlatex

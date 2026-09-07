@@ -1,4 +1,21 @@
-latex-mode LaTeX-mode
+latex-mode
+
+;; Overrides tempel-collection's `begin', which is loaded from a later source
+;; (see `tempel-template-sources') and has two defects under AUCTeX:
+;;
+;;   1. Its environment name is `(s env)', a bare named field. Reaching it via
+;;      `tempel-expand' (TAB) lands point on the region field instead, so the
+;;      name typed first goes *after* the closing brace. `(p ... env)' makes it
+;;      a prompted placeholder, which takes point first.
+;;   2. It ends the `\end{}' line with `n>', indenting an empty line while the
+;;      environment name is still blank. AUCTeX cannot match \begin/\end yet,
+;;      so it adds a level and `\end' lands one indent deeper than `\begin'.
+;;      Emitting a plain `n' and indenting with a trailing `>' -- after
+;;      \end{...} is on the line -- lets AUCTeX match the pair and line them up.
+(begin
+ "\\begin{" (p "environment" env) "}" n>
+ r> n
+ "\\end{" (s env) "}" >)
 
 (ac
  "\\newacronym{" (p "label") "{" (p "Name") "}}")

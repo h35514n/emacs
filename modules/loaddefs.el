@@ -471,6 +471,7 @@ Nothing is written; the proposal opens in a preview buffer.
 ;;; Generated autoloads from dm-latex.el
 
 (register-definition-prefixes "dm-latex" '("dm-latex-tempel-tab"))
+
 
 ;;; End of scraped data
 
