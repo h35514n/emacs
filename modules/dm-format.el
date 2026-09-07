@@ -32,9 +32,28 @@
                    (css-mode              . prettier-css)
                    (css-ts-mode           . prettier-css)
                    (json-mode             . prettier-json)
-                   (json-ts-mode          . prettier-json)))
+                   (json-ts-mode          . prettier-json)
+                   (LaTeX-mode            . latexindent)
+                   (latex-mode            . latexindent)
+                   (TeX-latex-mode        . latexindent)))
     (setf (alist-get (car entry) apheleia-mode-alist) (cdr entry)))
-  (apheleia-global-mode -1))
+
+  ;; latexindent indents with a literal tab out of the box. This config is
+  ;; spaces everywhere (`indent-tabs-mode' is nil), and two spaces matches
+  ;; AUCTeX's `LaTeX-indent-level'. `--yaml' layers over any indentconfig.yaml
+  ;; a document supplies, so per-project settings still apply.
+  ;;
+  ;; Deliberately no `-m': that lets latexindent add and remove line breaks,
+  ;; which rewraps prose paragraphs and is too invasive to run on every save.
+  (setf (alist-get 'latexindent apheleia-formatters)
+        '("latexindent" "--logfile=/dev/null" "--yaml=defaultIndent: '  '")))
+
+;; No `apheleia-global-mode' here, and not merely because it is off by default:
+;; calling `(apheleia-global-mode -1)' would run `(apheleia-mode -1)' in every
+;; live buffer, as any globalized minor mode's disable path does. Apheleia loads
+;; lazily on the first save, so that call would land mid-save and switch the
+;; buffer being saved back off. Buffers opt in per-mode via `apheleia-mode'
+;; instead -- see the LaTeX hook in dm-latex.el.
 
 (defun dm-format-text-keybindings ()
   "Bind Super text-formatting commands in the current buffer."

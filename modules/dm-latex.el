@@ -26,7 +26,12 @@
   ;; Shipped by the auctex package installed above.
   :straight nil
   :hook ((LaTeX-mode . turn-on-cdlatex)
-         (LaTeX-mode . laas-mode))
+         (LaTeX-mode . laas-mode)
+         ;; Format on save with latexindent. `apheleia-global-mode' is off, so
+         ;; modes opt in one at a time; the formatter itself is configured in
+         ;; dm-format.el. `docTeX-mode' derives from `LaTeX-mode', so .dtx
+         ;; files are covered by this hook too.
+         (LaTeX-mode . apheleia-mode))
   :custom
   ;; Parse the document on open and save so AUCTeX knows its own labels,
   ;; environments, and macros.
