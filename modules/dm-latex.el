@@ -49,6 +49,70 @@ Preserve the exact number string and require an existing regular file."
 (add-to-list 'auto-mode-alist
              '("/\\(?:problem\\|solution\\)[0-9]+\\.tex\\'" . latex-mode))
 
+;; ------------------------------------------------------------------
+;; compile-on-save for Makefile-driven documents (psets, course repos)
+;; ------------------------------------------------------------------
+
+(defvar dm-latex-compile-command '("make" "-k")
+  "Command run in the Makefile directory after saving a LaTeX buffer.")
+
+(defvar dm-latex--compile-processes nil
+  "Alist of (ROOT . PROCESS) for in-flight `make' runs, keyed by
+the directory of the Makefile driving that run.")
+
+(defun dm-latex--makefile-dir ()
+  "Return the nearest directory above the current file with a Makefile.
+Checks for `Makefile', `makefile', and `GNUmakefile'. Return nil if the
+buffer has no file, or no such directory exists above it."
+  (when buffer-file-name
+    (locate-dominating-file
+     buffer-file-name
+     (lambda (dir)
+       (seq-some (lambda (name) (file-exists-p (expand-file-name name dir)))
+                 '("Makefile" "makefile" "GNUmakefile"))))))
+
+(defun dm-latex--compile-sentinel (_proc event)
+  "Report the outcome of a `make' run started by `dm-latex-compile-after-save'."
+  (cond
+   ((string= event "finished\n")
+    (message "✓ LaTeX compiled"))
+   ((string-prefix-p "exited abnormally" event)
+    (message "✗ LaTeX compile failed — see *latex-make*"))))
+
+(defun dm-latex-compile-after-save ()
+  "Run `make' in the nearest Makefile directory after saving.
+Does nothing if the buffer has no Makefile above it, or if a `make' run
+for that same directory is already in flight -- sibling problem/solution
+fragments (see `dm-latex-toggle-problem-solution') share one Makefile, and
+saving several in quick succession should not start concurrent builds."
+  (if-let* ((root (dm-latex--makefile-dir)))
+      (let ((proc (alist-get root dm-latex--compile-processes nil nil #'equal)))
+        (if (process-live-p proc)
+            (message "… LaTeX compile already running in %s" root)
+          (let ((default-directory root))
+            (setf (alist-get root dm-latex--compile-processes nil nil #'equal)
+                  (make-process
+                   :name "latex-make"
+                   :buffer "*latex-make*"
+                   :command dm-latex-compile-command
+                   :sentinel #'dm-latex--compile-sentinel)))))
+    (message "✗ LaTeX compile: no Makefile found above %s" buffer-file-name)))
+
+(define-minor-mode dm-latex-auto-compile-mode
+  "Run `make' after saving, for files that live under a Makefile."
+  :lighter " Make"
+  (if dm-latex-auto-compile-mode
+      (add-hook 'after-save-hook #'dm-latex-compile-after-save nil :local)
+    (remove-hook 'after-save-hook #'dm-latex-compile-after-save :local)))
+
+(defun dm-latex-maybe-enable-auto-compile ()
+  "Turn on `dm-latex-auto-compile-mode' when a Makefile governs this file."
+  (when (dm-latex--makefile-dir)
+    (dm-latex-auto-compile-mode 1)))
+
+(add-hook 'LaTeX-mode-hook #'dm-latex-maybe-enable-auto-compile)
+(add-hook 'latex-mode-hook #'dm-latex-maybe-enable-auto-compile)
+
 (use-package tex-site
   ;; The package is `auctex'. `tex-site' is the small shim that redirects the
   ;; built-in TeX modes to AUCTeX's via `major-mode-remap-defaults', which is

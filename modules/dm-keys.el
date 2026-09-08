@@ -97,6 +97,7 @@
     ;; Toggle / Test
     "t"   '(:ignore t              :which-key "toggle/test")
     "t c" '(copilot-mode           :which-key "toggle copilot")
+    "t m" '(dm-latex-auto-compile-mode :which-key "toggle make-on-save")
     "t w" '(dm-wrapping-toggle     :which-key "toggle wrapping")
     "t t" '(dm-repl-test-dwim      :which-key "test dwim")
     "t b" '(dm-repl-test-buffer    :which-key "test buffer")
