@@ -77,6 +77,7 @@
     (evil-local-set-key state (kbd "C-f") #'dm-text-latex-wrap-as-frac)
     (evil-local-set-key state (kbd "C-e") #'dm-text-latex-evaluate-selection)
     (evil-local-set-key state (kbd "C-m") #'dm-text-latex-wrap-as-math)
+    (evil-local-set-key state (kbd "C-S-m") #'dm-text-latex-wrap-as-math-display)
     (evil-local-set-key state (kbd "C-s") #'dm-text-latex-wrap-as-si)))
 
 (dolist (hook '(LaTeX-mode-hook latex-mode-hook))
