@@ -22,11 +22,11 @@
   :config
   (evil-mode 1)
   (dm-evil-text-setup)
-  (evil-define-command dm-evil-toggle-test-implementation ()
-    "Toggle between implementation and test file."
+  (evil-define-command dm-evil-alternate-file ()
+    "Visit the current buffer's alternate file."
     :repeat nil
-    (dm-toggle-test-implementation))
-  (evil-ex-define-cmd "A" #'dm-evil-toggle-test-implementation)
+    (dm-alternate-file))
+  (evil-ex-define-cmd "A" #'dm-evil-alternate-file)
   ;; Let the main readline-style keys fall through to the global map in insert
   ;; state. C-k/C-t/C-y keep their Evil insert-state meanings.
   (dolist (key '("C-a" "C-e" "C-b" "C-f" "C-n" "C-p" "C-d"))

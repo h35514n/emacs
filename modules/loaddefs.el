@@ -49,6 +49,8 @@ directory hierarchy." t)
 
 ;;; Generated autoloads from dm-files.el
 
+(autoload 'dm-alternate-file "dm-files"
+"Visit the alternate file selected by `dm-alternate-file-function'." t)
 (autoload 'dm-open-config-new-tab "dm-files"
 "Open the Emacs init.el file in a new tab." t)
 (autoload 'dm-find-in-home--refresh-cache "dm-files"
@@ -470,7 +472,10 @@ Nothing is written; the proposal opens in a preview buffer.
 
 ;;; Generated autoloads from dm-latex.el
 
-(register-definition-prefixes "dm-latex" '("dm-latex-tempel-tab"))
+(autoload 'dm-latex-toggle-problem-solution "dm-latex"
+"Toggle between sibling problemNN.tex and solutionNN.tex fragments.
+Preserve the exact number string and require an existing regular file." t)
+(register-definition-prefixes "dm-latex" '("dm-latex-"))
 
 
 ;;; End of scraped data

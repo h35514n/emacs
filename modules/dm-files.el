@@ -13,6 +13,16 @@
 (require 'project)
 (require 'subr-x)
 
+(defvar-local dm-alternate-file-function #'dm-toggle-test-implementation
+  "Interactive command used by `dm-alternate-file' in the current buffer.
+The command is called without arguments and reports its own errors.")
+
+;;;###autoload
+(defun dm-alternate-file ()
+  "Visit the alternate file selected by `dm-alternate-file-function'."
+  (interactive)
+  (call-interactively dm-alternate-file-function))
+
 (defgroup dm-file-open nil
   "Open files and directories from Emacs."
   :group 'convenience)

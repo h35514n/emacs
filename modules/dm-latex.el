@@ -14,6 +14,41 @@
 
 ;;; Code:
 
+(require 'dm-files)
+
+;;;###autoload
+(defun dm-latex-toggle-problem-solution ()
+  "Toggle between sibling problemNN.tex and solutionNN.tex fragments.
+Preserve the exact number string and require an existing regular file."
+  (interactive)
+  (let* ((file (dm-current-file-or-error))
+         (name (file-name-nondirectory file))
+         (case-fold-search nil))
+    (unless (string-match "\\`\\(problem\\|solution\\)\\([0-9]+\\)\\.tex\\'" name)
+      (user-error "Not a problem/solution fragment: %s" name))
+    (let ((counterpart
+           (expand-file-name
+            (concat (if (string= (match-string 1 name) "problem")
+                        "solution"
+                      "problem")
+                    (match-string 2 name) ".tex")
+            (file-name-directory file))))
+      (unless (file-regular-p counterpart)
+        (user-error "Counterpart is not an existing regular file: %s" counterpart))
+      (find-file counterpart))))
+
+(defun dm-latex-setup-alternate-file ()
+  "Select problem/solution navigation for the current LaTeX buffer."
+  (setq-local dm-alternate-file-function #'dm-latex-toggle-problem-solution))
+
+(add-hook 'LaTeX-mode-hook #'dm-latex-setup-alternate-file)
+(add-hook 'latex-mode-hook #'dm-latex-setup-alternate-file)
+
+;; Fragments can lack the commands AUCTeX uses to recognize LaTeX content.
+;; Select their mode by filename; tex-site remaps `latex-mode' to `LaTeX-mode'.
+(add-to-list 'auto-mode-alist
+             '("/\\(?:problem\\|solution\\)[0-9]+\\.tex\\'" . latex-mode))
+
 (use-package tex-site
   ;; The package is `auctex'. `tex-site' is the small shim that redirects the
   ;; built-in TeX modes to AUCTeX's via `major-mode-remap-defaults', which is
