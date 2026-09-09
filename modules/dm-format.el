@@ -78,7 +78,14 @@
     (evil-local-set-key state (kbd "C-e") #'dm-text-latex-evaluate-selection)
     (evil-local-set-key state (kbd "C-m") #'dm-text-latex-wrap-as-math)
     (evil-local-set-key state (kbd "C-S-m") #'dm-text-latex-wrap-as-math-display)
-    (evil-local-set-key state (kbd "C-s") #'dm-text-latex-wrap-as-si)))
+    (evil-local-set-key state (kbd "C-s") #'dm-text-latex-wrap-as-si))
+  ;; `C-m' is indistinguishable from RET in a terminal, so insert state gets
+  ;; the Super bindings instead -- same convention as the bold/italic/underline
+  ;; keys in `dm-format-text-keybindings'. `dm-text-latex-wrap-as-math'
+  ;; already special-cases `evil-insert-state-p' to drop in empty delimiters
+  ;; and leave point between them, ready to type.
+  (evil-local-set-key 'insert (kbd "s-m") #'dm-text-latex-wrap-as-math)
+  (evil-local-set-key 'insert (kbd "s-M") #'dm-text-latex-wrap-as-math-display))
 
 (dolist (hook '(LaTeX-mode-hook latex-mode-hook))
   (add-hook hook #'dm-format-latex-keybindings))
