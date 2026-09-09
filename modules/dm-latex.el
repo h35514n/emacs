@@ -15,6 +15,8 @@
 ;;; Code:
 
 (require 'dm-files)
+(require 'cl-lib)
+(require 'seq)
 
 ;;;###autoload
 (defun dm-latex-toggle-problem-solution ()
@@ -54,11 +56,27 @@ Preserve the exact number string and require an existing regular file."
 ;; ------------------------------------------------------------------
 
 (defvar dm-latex-compile-command '("make" "-k")
-  "Command run in the Makefile directory after saving a LaTeX buffer.")
+  "Executable and argument strings run after saving a LaTeX buffer.
+The command runs in the nearest Makefile directory, with the saved
+filename relative to that directory in the DM_LATEX_SAVED_FILE
+environment variable.  For example, a project can select
+\(\"make\" \"-k\" \"on-save\") in its .dir-locals.el and let its Makefile
+choose the output from that filename.  No shell expansion is performed.")
+
+;; Trust the one opt-in project convention, independent of the saved file.
+(add-to-list 'safe-local-variable-values
+             '(dm-latex-compile-command . ("make" "-k" "on-save")))
 
 (defvar dm-latex--compile-processes nil
-  "Alist of (ROOT . PROCESS) for in-flight `make' runs, keyed by
-the directory of the Makefile driving that run.")
+  "Alist of (ROOT . PROCESS) for active save commands.")
+
+(defvar dm-latex--compile-queues nil
+  "Alist of (ROOT . BUILDS) waiting for the active save command.
+BUILDS is a FIFO list of `dm-latex--build' records, with at most one
+pending build per saved filename.  ROOT is the Makefile directory.")
+
+(cl-defstruct (dm-latex--build (:constructor dm-latex--build-create))
+  file command environment exec-path)
 
 (defun dm-latex--makefile-dir ()
   "Return the nearest directory above the current file with a Makefile.
@@ -71,35 +89,93 @@ buffer has no file, or no such directory exists above it."
        (seq-some (lambda (name) (file-exists-p (expand-file-name name dir)))
                  '("Makefile" "makefile" "GNUmakefile"))))))
 
-(defun dm-latex--compile-sentinel (_proc event)
-  "Report the outcome of a `make' run started by `dm-latex-compile-after-save'."
-  (cond
-   ((string= event "finished\n")
-    (message "✓ LaTeX compiled"))
-   ((string-prefix-p "exited abnormally" event)
-    (message "✗ LaTeX compile failed — see *latex-make*"))))
+(defun dm-latex--compile-log (format-string &rest args)
+  "Append FORMAT-STRING and ARGS to the save command output."
+  (with-current-buffer (get-buffer-create "*latex-make*")
+    (let ((inhibit-read-only t))
+      (goto-char (point-max))
+      (insert (apply #'format format-string args)))))
+
+(defun dm-latex--compile-sentinel (proc event)
+  "Report PROC's terminal EVENT and start the next queued save command."
+  (when (and (memq (process-status proc) '(exit signal failed))
+             (not (process-get proc 'dm-latex-finished)))
+    (process-put proc 'dm-latex-finished t)
+    (let ((root (process-get proc 'dm-latex-root))
+          (file (process-get proc 'dm-latex-file)))
+      (dm-latex--compile-log "\n[%s] %s: %s" root file event)
+      (if (and (eq (process-status proc) 'exit)
+               (zerop (process-exit-status proc)))
+          (message "✓ LaTeX save command finished: %s" file)
+        (message "✗ LaTeX save command failed: %s — see *latex-make*" file))
+      ;; A save can start the next build before this sentinel is delivered.
+      ;; An older process must not clear its replacement or drain its queue.
+      (when (eq proc (alist-get root dm-latex--compile-processes nil nil #'equal))
+        (setq dm-latex--compile-processes
+              (assoc-delete-all root dm-latex--compile-processes))
+        (dm-latex--compile-next root)))))
+
+(defun dm-latex--compile-next (root)
+  "Start the next pending command for ROOT unless one is already running.
+Report launch errors and continue to the next request without retrying."
+  (while (and (alist-get root dm-latex--compile-queues nil nil #'equal)
+              (not (process-live-p
+                    (alist-get root dm-latex--compile-processes nil nil #'equal))))
+    (let* ((build (pop (alist-get root dm-latex--compile-queues nil nil #'equal)))
+           (default-directory root)
+           (process-environment (dm-latex--build-environment build))
+           (exec-path (dm-latex--build-exec-path build))
+           (file (dm-latex--build-file build)))
+      (setq dm-latex--compile-processes
+            (assoc-delete-all root dm-latex--compile-processes))
+      (dm-latex--compile-log "\n[%s] Saved %s\nCommand: %S\n"
+                             root file (dm-latex--build-command build))
+      (condition-case err
+          (let ((proc (make-process
+                       :name "latex-make"
+                       :buffer "*latex-make*"
+                       :command (dm-latex--build-command build)
+                       :sentinel #'dm-latex--compile-sentinel)))
+            (process-put proc 'dm-latex-root root)
+            (process-put proc 'dm-latex-file file)
+            (setf (alist-get root dm-latex--compile-processes nil nil #'equal) proc))
+        (error
+         (dm-latex--compile-log "Could not start %s: %s\n" file (error-message-string err))
+         (message "✗ LaTeX save command could not start: %s — see *latex-make*" file)))))
+  (unless (alist-get root dm-latex--compile-queues nil nil #'equal)
+    (setq dm-latex--compile-queues
+          (assoc-delete-all root dm-latex--compile-queues))))
 
 (defun dm-latex-compile-after-save ()
-  "Run `make' in the nearest Makefile directory after saving.
-Does nothing if the buffer has no Makefile above it, or if a `make' run
-for that same directory is already in flight -- sibling problem/solution
-fragments (see `dm-latex-toggle-problem-solution') share one Makefile, and
-saving several in quick succession should not start concurrent builds."
+  "Run `dm-latex-compile-command' in the nearest Makefile directory.
+Queue saves while that directory has an active command.  Repeated saves
+of a pending file replace its request, preserving its place in the queue.
+Each request captures its command and environment from the saved buffer."
   (if-let* ((root (dm-latex--makefile-dir)))
-      (let ((proc (alist-get root dm-latex--compile-processes nil nil #'equal)))
-        (if (process-live-p proc)
-            (message "… LaTeX compile already running in %s" root)
-          (let ((default-directory root))
-            (setf (alist-get root dm-latex--compile-processes nil nil #'equal)
-                  (make-process
-                   :name "latex-make"
-                   :buffer "*latex-make*"
-                   :command dm-latex-compile-command
-                   :sentinel #'dm-latex--compile-sentinel)))))
+      (let* ((file (file-relative-name buffer-file-name root))
+             (process-environment (copy-sequence process-environment))
+             (_ (setenv "DM_LATEX_SAVED_FILE" file))
+             (build (dm-latex--build-create
+                     :file file
+                     :command (copy-sequence dm-latex-compile-command)
+                     :environment process-environment
+                     :exec-path (copy-sequence exec-path)))
+             (pending (cl-member file
+                                 (alist-get root dm-latex--compile-queues nil nil #'equal)
+                                 :key #'dm-latex--build-file :test #'equal)))
+        (if pending
+            (setcar pending build)
+          (setf (alist-get root dm-latex--compile-queues nil nil #'equal)
+                (nconc (alist-get root dm-latex--compile-queues nil nil #'equal)
+                       (list build))))
+        (when (process-live-p
+               (alist-get root dm-latex--compile-processes nil nil #'equal))
+          (message "… LaTeX save command queued: %s" file))
+        (dm-latex--compile-next root))
     (message "✗ LaTeX compile: no Makefile found above %s" buffer-file-name)))
 
 (define-minor-mode dm-latex-auto-compile-mode
-  "Run `make' after saving, for files that live under a Makefile."
+  "Run `dm-latex-compile-command' after saving files under a Makefile."
   :lighter " Make"
   (if dm-latex-auto-compile-mode
       (add-hook 'after-save-hook #'dm-latex-compile-after-save nil :local)

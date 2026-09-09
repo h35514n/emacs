@@ -107,6 +107,35 @@ Four of the six suites need Org on the load path for their end-to-end
 tests, which `bin/test` derives from `dm-data-home` in `early-init.el`;
 set `ORG_LOAD_PATH` to point it somewhere else.
 
+LaTeX builds on save
+-------------------
+
+LaTeX buffers under a Makefile automatically run `dm-latex-compile-command`
+on save (default: `("make" "-k")`). `SPC t m` toggles this for the current
+buffer. The command is an executable/argument list, with no shell expansion.
+It runs in the nearest directory containing `Makefile`, `makefile`, or
+`GNUmakefile`.
+
+The child process receives `DM_LATEX_SAVED_FILE`, the saved filename relative
+to that directory. A project can use this to build only the affected document
+without putting its naming conventions into Emacs. Set one project-root
+`.dir-locals.el` entry:
+
+```elisp
+((nil . ((dm-latex-compile-command . ("make" "-k" "on-save")))))
+```
+
+Implement `on-save` in that project's Makefile, reading the filename from the
+environment as data and selecting the appropriate build target. The exact
+command above is trusted by this configuration; other commands retain Emacs's
+normal local-variable confirmation. Remove any old per-directory command
+overrides, then reopen existing buffers or run `M-x normal-mode`.
+
+Commands run one at a time per Makefile directory. Saves during a command are
+queued; repeated pending saves of the same file coalesce to its latest command
+and environment. A failed command is reported without retrying and the next
+request runs. Output, filenames, commands, and results appear in `*latex-make*`.
+
 Notes
 -----
 
