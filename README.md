@@ -139,6 +139,10 @@ request runs. Output, filenames, commands, and results appear in `*latex-make*`.
 Notes
 -----
 
+- New Emacs processes start at `*scratch*`. `SPC q r` or
+  `M-x restart-emacs` saves and restores the desktop, including window
+  splits. Ordinary exits leave the saved desktop untouched; use
+  `M-x desktop-read` to restore it manually.
 - The XDG paths are hardcoded as constants in `early-init.el`. If you
   want the config elsewhere, edit those constants rather than fighting
   the symlinks.

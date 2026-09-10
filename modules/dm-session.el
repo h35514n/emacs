@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 
-;; Session persistence and restore.
+;; Save and restore the desktop only for explicit restarts.
 
 ;;; Code:
 
@@ -18,10 +18,20 @@
   (setq desktop-load-locked-desktop t)
   (setq desktop-restore-frames t)
   (setq desktop-restore-reuses-frames nil) ;; t can restore with the window size broken
-  (setq desktop-save t)
+  (setq desktop-save nil)
   (setq desktop-restore-eager 4)
   (setq desktop-lazy-verbose nil)
   :config
+  ;; The mode also reads the desktop from `after-init-hook'.  Both saving
+  ;; and loading are explicit below, so ordinary launches and exits leave
+  ;; the saved session alone.
+  (desktop-save-mode -1)
+  ;; Remember the existing file without loading it.  A later restart can
+  ;; replace it without an overwrite prompt unless another process changed it.
+  (setq desktop-file-modtime
+        (file-attribute-modification-time
+         (file-attributes (desktop-full-file-name))))
+
   (dolist (mode '(compilation-mode
                   eat-mode
                   eshell-mode
@@ -56,7 +66,78 @@ restored one; when it lingers anyway, fold it away here and bury
         (bury-buffer scratch))))
   (add-hook 'desktop-after-read-hook #'dm-desktop-bury-scratch-frame)
 
-  (desktop-save-mode 1))
+  (defun dm-desktop-restart-marker-file ()
+    "Return this process's one-use desktop restart marker file."
+    (expand-file-name (format "restart-%d" (emacs-pid)) dm-dir-desktop))
+
+  (defun dm-desktop-restart-identity ()
+    "Identify this OS process across a restart, or return nil if unavailable.
+The built-in restart re-executes the same process.  Its OS start time
+guards against stale markers when a later process reuses the PID."
+    ;; `process-attributes' consults the remote host in a Tramp buffer.
+    (let* ((default-directory (expand-file-name dm-dir-desktop))
+           (start (cdr (assq 'start (process-attributes (emacs-pid))))))
+      (when start
+        (list (system-name) (emacs-pid) start))))
+
+  (defun dm-desktop-restart-matches-p (identity saved)
+    "Return non-nil when SAVED identifies the same process as IDENTITY."
+    (pcase saved
+      (`(,host ,pid ,start)
+       (and identity start
+            (equal host (car identity))
+            (equal pid (nth 1 identity))
+            ;; On Linux the start time is derived from separate wall-clock
+            ;; and uptime readings, so it can differ slightly across calls.
+            (condition-case nil
+                (< (abs (float-time (time-subtract start (nth 2 identity)))) 1)
+              (error nil))))))
+
+  (defun dm-desktop-save-on-restart (orig-fun &optional arg restart)
+    "Save the desktop before ORIG-FUN only when RESTART is non-nil.
+Advising `kill-emacs' places the save after shutdown confirmations.
+Pass ARG and RESTART through, and remove the marker if shutdown fails."
+    (if (not restart)
+        (funcall orig-fun arg restart)
+      (let ((marker (dm-desktop-restart-marker-file))
+            (identity (dm-desktop-restart-identity)))
+        (unless identity
+          (user-error "Cannot identify this process for desktop restart"))
+        (unwind-protect
+            (progn
+              ;; Do not release here: `desktop-save' must signal if the
+              ;; user declines a conflict prompt, aborting the restart.
+              ;; The normal `kill-emacs-hook' releases the desktop lock.
+              (desktop-save dm-dir-desktop)
+              (let ((print-length nil)
+                    (print-level nil))
+                (with-temp-file marker
+                  (prin1 identity (current-buffer))))
+              (funcall orig-fun arg restart))
+          ;; Successful re-exec never returns to this cleanup.
+          (when (file-exists-p marker)
+            (delete-file marker))))))
+  (advice-add 'kill-emacs :around #'dm-desktop-save-on-restart)
+
+  (defun dm-desktop-restore-after-restart ()
+    "Consume a matching restart marker and restore the saved desktop."
+    (unless noninteractive
+      (let* ((marker (dm-desktop-restart-marker-file))
+             (identity (dm-desktop-restart-identity))
+             (saved-identity
+              (condition-case nil
+                  (with-temp-buffer
+                    (insert-file-contents marker)
+                    (read (current-buffer)))
+                ((file-error end-of-file invalid-read-syntax) nil))))
+        (when (dm-desktop-restart-matches-p identity saved-identity)
+          ;; Consume before loading, so a failed restore cannot be retried
+          ;; accidentally.  An explicit --no-desktop still takes precedence.
+          (delete-file marker)
+          (when (and (not (member "--no-desktop" command-line-args))
+                     (file-exists-p (desktop-full-file-name dm-dir-desktop)))
+            (desktop-read dm-dir-desktop))))))
+  (add-hook 'after-init-hook #'dm-desktop-restore-after-restart))
 
 (provide 'dm-session)
 ;;; dm-session.el ends here
