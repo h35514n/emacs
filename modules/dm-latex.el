@@ -216,6 +216,14 @@ Each request captures its command and environment from the saved buffer."
   ;; Leave sub/superscript insertion to cdlatex and laas, which both bind it.
   (TeX-electric-sub-and-superscript nil))
 
+;; Treat the custom formula environment as math for snippets and font lock.
+(with-eval-after-load 'texmathp
+  (add-to-list 'texmathp-tex-commands '("formula" env-on))
+  (texmathp-compile))
+
+(with-eval-after-load 'font-latex
+  (font-latex-update-math-env))
+
 ;; Eglot derives the LSP languageId from the major-mode name by stripping
 ;; "-mode", without downcasing (see `eglot--language-ids'). AUCTeX's modes are
 ;; CamelCase, so `LaTeX-mode' yields "LaTeX". Digestif's translation table is
