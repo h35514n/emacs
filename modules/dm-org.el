@@ -351,5 +351,49 @@ Effort values are assumed to be in standard Org time format, e.g., \"0:30\" or \
       (org-entry-put (point) "Effort" (org-duration-from-minutes sum))
       (message "Set Effort to %s" (org-duration-from-minutes sum)))))
 
+(defun dm-org--planning-value-without-time (value)
+  "Return planning VALUE (SCHEDULED/DEADLINE's raw text) with any HH:MM stripped.
+Keeps the date, weekday, and any repeater/warning cookie unchanged."
+  (replace-regexp-in-string
+   "\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} [A-Za-z]+\\) [0-9]\\{1,2\\}:[0-9]\\{2\\}\\(-[0-9]\\{1,2\\}:[0-9]\\{2\\}\\)?"
+   "\\1"
+   value))
+
+;;;###autoload
+(defun dm-org-clear-planning-on-subtree (scope precision)
+  "Clear planning timestamps on every heading in the current tree.
+
+SCOPE is `both', `scheduled', or `deadline': which planning keyword(s)
+to touch.  PRECISION is `entire', removing the timestamp outright, or
+`time', stripping only its time-of-day and leaving the date in place."
+  (interactive
+   (list (intern (completing-read "Clear: "
+                                   '("both" "scheduled" "deadline")
+                                   nil t nil nil "both"))
+         (if (string= (completing-read "Remove: "
+                                        '("entire timestamp" "time-of-day only")
+                                        nil t nil nil "entire timestamp")
+                      "time-of-day only")
+             'time
+           'entire)))
+  (let ((keywords (cond ((eq scope 'both) '("SCHEDULED" "DEADLINE"))
+                         ((eq scope 'scheduled) '("SCHEDULED"))
+                         (t '("DEADLINE")))))
+    (org-map-entries
+     (lambda ()
+       (dolist (keyword keywords)
+         (let ((value (org-entry-get (point) keyword)))
+           (when value
+             (if (eq precision 'entire)
+                 (if (string= keyword "SCHEDULED")
+                     (org-schedule '(4))
+                   (org-deadline '(4)))
+               (let ((stripped (dm-org--planning-value-without-time value)))
+                 (unless (string= stripped value)
+                   (if (string= keyword "SCHEDULED")
+                       (org-schedule nil stripped)
+                     (org-deadline nil stripped)))))))))
+     nil 'tree)))
+
 (provide 'dm-org)
 ;;; dm-org.el ends here

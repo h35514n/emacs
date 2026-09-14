@@ -200,6 +200,14 @@ agenda file, cycle as usual by one step in the chosen direction.
 and store the total Effort in the current heading's property drawer.
 
 Effort values are assumed to be in standard Org time format, e.g., \"0:30\" or \"2:15\"." t)
+(autoload 'dm-org-clear-planning-on-subtree "dm-org"
+"Clear planning timestamps on every heading in the current tree.
+
+SCOPE is `both', `scheduled', or `deadline': which planning keyword(s)
+to touch.  PRECISION is `entire', removing the timestamp outright, or
+`time', stripping only its time-of-day and leaving the date in place.
+
+(fn SCOPE PRECISION)" t)
 (register-definition-prefixes "dm-org" '("dm-org-"))
 
 

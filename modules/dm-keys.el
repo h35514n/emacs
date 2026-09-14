@@ -93,6 +93,7 @@
     "o f" '(consult-org-agenda     :which-key "find")
     "o p" '(dm-org-persist-pull    :which-key "pull")
     "o A" '(org-cycle-agenda-files :which-key "cycle agenda files")
+    "o d" '(dm-org-clear-planning-on-subtree :which-key "clear dates")
 
     ;; Toggle / Test
     "t"   '(:ignore t              :which-key "toggle/test")
