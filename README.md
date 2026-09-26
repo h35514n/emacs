@@ -139,6 +139,9 @@ request runs. Output, filenames, commands, and results appear in `*latex-make*`.
 Notes
 -----
 
+- New graphical windows fill the usable screen height and are centered at
+  60% of the screen's usable width. Explicit geometry and saved desktop
+  layouts take precedence over these defaults.
 - New Emacs processes start at `*scratch*`. `SPC q r` or
   `M-x restart-emacs` saves and restores the desktop, including window
   splits. Ordinary exits leave the saved desktop untouched; use

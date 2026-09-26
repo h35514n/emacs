@@ -115,8 +115,6 @@ persist alongside truncated lines."
 
 ;;; Package-backed appearance.
 
-(set-face-attribute 'default nil :family "Source Code Pro Ligaturized" :height 170)
-
 (use-package gruvbox-theme
   :config
   (load-theme 'gruvbox-dark-medium t)

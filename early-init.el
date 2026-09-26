@@ -5,12 +5,21 @@
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
 
+;; Keep the intended pixel dimensions when fonts and fringes change at startup.
+(setq frame-resize-pixelwise t
+      frame-inhibit-implied-resize t)
+
 ;; Suppress UI chrome before the first frame is created. Doing this here
 ;; (rather than in init.el) avoids a brief flash of the full toolbar UI.
+;; New frames fill the workarea vertically and occupy its centered 60% width.
 (setq default-frame-alist
       '((tool-bar-lines . 0)
         (menu-bar-lines . 0)
-        (fullscreen . maximized)
+        (fullscreen . fullheight)
+        (width . 0.6)
+        (left . 0.5)
+        ;; Set the font before sizing new frames to avoid implicit resizing.
+        (font . "Source Code Pro Ligaturized-17")
         (vertical-scroll-bars . nil)
         (horizontal-scroll-bars . nil)
         (ns-transparent-titlebar . t)
