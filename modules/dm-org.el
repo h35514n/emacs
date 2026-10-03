@@ -181,6 +181,7 @@ VALUE is the value Org would otherwise display."
                           (800 1000 1200 1400 1600 1800 2000)
                           ""
                           ""))
+  (org-agenda-time-leading-zero t)
   (org-agenda-view-columns-initially nil)
   (org-agenda-window-setup 'only-window)
   (org-sort-agenda-notime-is-late t)
