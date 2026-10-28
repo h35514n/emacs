@@ -11,6 +11,8 @@
   :if (memq window-system '(mac ns x))
   :defer 0.1
   :custom
+  ;; Login-only: the vars come from zshenv; `-i' would run the slow zshrc.
+  (exec-path-from-shell-arguments '("-l"))
   (exec-path-from-shell-variables
    '(
      "CARGO_HOME"
