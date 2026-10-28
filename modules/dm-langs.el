@@ -136,27 +136,30 @@ Eglot's connect call blocks redisplay until the LSP server returns its
   :custom
   (treesit-auto-install t)
   :config
-  (setq dm-treesit-language-source-alist
-        '((bash "https://github.com/tree-sitter/tree-sitter-bash")
-          (cmake "https://github.com/uyha/tree-sitter-cmake")
-          (css "https://github.com/tree-sitter/tree-sitter-css")
-          (elisp "https://github.com/Wilfred/tree-sitter-elisp")
-          (elixir "https://github.com/elixir-lang/tree-sitter-elixir")
-          (go "https://github.com/tree-sitter/tree-sitter-go")
-          (heex "https://github.com/phoenixframework/tree-sitter-heex")
-          (html "https://github.com/tree-sitter/tree-sitter-html")
-          (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
-          (json "https://github.com/tree-sitter/tree-sitter-json")
-          (make "https://github.com/alemuller/tree-sitter-make")
-          (markdown "https://github.com/ikatyang/tree-sitter-markdown")
-          (python "https://github.com/tree-sitter/tree-sitter-python")
-          (rust "https://github.com/tree-sitter/tree-sitter-rust")
-          (toml "https://github.com/tree-sitter/tree-sitter-toml")
-          (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
-          (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
-          (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
   (treesit-auto-add-to-auto-mode-alist 'all)
   (global-treesit-auto-mode 1))
+
+(defvar dm-treesit-language-source-alist
+  '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+    (cmake "https://github.com/uyha/tree-sitter-cmake")
+    (css "https://github.com/tree-sitter/tree-sitter-css")
+    (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+    (elixir "https://github.com/elixir-lang/tree-sitter-elixir")
+    (go "https://github.com/tree-sitter/tree-sitter-go")
+    (heex "https://github.com/phoenixframework/tree-sitter-heex")
+    (html "https://github.com/tree-sitter/tree-sitter-html")
+    (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+    (json "https://github.com/tree-sitter/tree-sitter-json")
+    (make "https://github.com/alemuller/tree-sitter-make")
+    (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+    (python "https://github.com/tree-sitter/tree-sitter-python")
+    (rust "https://github.com/tree-sitter/tree-sitter-rust")
+    (toml "https://github.com/tree-sitter/tree-sitter-toml")
+    (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+    (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+    (yaml "https://github.com/ikatyang/tree-sitter-yaml"))
+  "Curated Tree-sitter grammar recipes installed by
+`dm-treesit-install-all-languages'.")
 
 ;;;###autoload
 (defun dm-treesit-install-all-languages (&optional use-treesit-auto)
@@ -171,15 +174,16 @@ and `treesit-auto-langs'."
   (if use-treesit-auto
       (progn
         (require 'treesit-auto)
-        (let ((dm-treesit-language-source-alist
+        (let ((treesit-language-source-alist
                (treesit-auto--build-treesit-source-alist)))
           (dolist (lang treesit-auto-langs)
             (unless (treesit-language-available-p lang)
               (treesit-install-language-grammar lang)))))
-    (dolist (entry dm-treesit-language-source-alist)
-      (let ((lang (car entry)))
-        (unless (treesit-language-available-p lang)
-          (treesit-install-language-grammar lang))))))
+    (let ((treesit-language-source-alist dm-treesit-language-source-alist))
+      (dolist (entry dm-treesit-language-source-alist)
+        (let ((lang (car entry)))
+          (unless (treesit-language-available-p lang)
+            (treesit-install-language-grammar lang)))))))
 
 (use-package treesit-fold
   ;; Structural folding for tree-sitter modes; integrates with Evil's z* folds
