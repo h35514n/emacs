@@ -124,6 +124,22 @@ name the suffix of an `evil-inner-*' text object."
         (copy-as-format)))
     (goto-char start-pos)))
 
+(defun dm-evil-text-copy-dwim ()
+  "Copy the visual selection, or the current line, with `copy-as-format'.
+Call `copy-as-format' with a prefix argument to select the format."
+  (interactive)
+  (let ((current-prefix-arg '(4)))
+    (if (evil-visual-state-p)
+        (progn
+          (call-interactively #'copy-as-format)
+          (evil-exit-visual-state))
+      (save-excursion
+        (set-mark (line-end-position))
+        (goto-char (line-beginning-position))
+        (activate-mark)
+        (call-interactively #'copy-as-format)
+        (deactivate-mark)))))
+
 (defun dm-evil-text-copy-inner-paragraph (desc)
   "Copy inside the paragraph under point.
 With prefix argument DESC, copy in descending order."
@@ -210,6 +226,8 @@ Then enter Evil insert state."
     (kbd "g s i )") #'dm-evil-text-sort-inner-paren)
 
   ;; yank motions
+  (evil-define-key* '(normal visual) 'global
+    (kbd "g y RET") #'dm-evil-text-copy-dwim)
   (evil-define-key* 'normal 'global
     (kbd "g y i p") #'dm-evil-text-copy-inner-paragraph
     (kbd "g y i g") #'dm-evil-text-copy-inner-buffer
@@ -221,7 +239,7 @@ Then enter Evil insert state."
     (kbd "g y i )") #'dm-evil-text-copy-inner-paren)
   (with-eval-after-load 'evil-commentary
     ;; Let the global `g y i ...' bindings win over commentary's `gy' operator.
-    (evil-define-key* 'normal evil-commentary-mode-map
+    (evil-define-key* '(normal visual) evil-commentary-mode-map
       (kbd "g y") nil))
 
   ;; word chars
