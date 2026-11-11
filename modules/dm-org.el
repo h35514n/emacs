@@ -11,6 +11,11 @@
   "Return the absolute path to the file in `org-directory' named NAME.org."
   (expand-file-name (format "%s.org" name) org-directory))
 
+;; Set these paths before Org loads. ORG_HOME is exported by env/setup.sh.
+(setq org-directory (or (getenv "ORG_HOME") (expand-file-name "~/Org"))
+      org-agenda-files (expand-file-name ".agenda-files.el" org-directory)
+      org-default-notes-file (dm-org-file "inbox"))
+
 (use-package org
   ;; Use the ELPA version rather than the built-in one for up-to-date features.
   :straight t
@@ -21,9 +26,6 @@
   ;; via `org-load-modules-maybe' on first org-mode activation accounted for
   ;; roughly half of the open cost. Add specific modules back here as needed.
   (org-modules nil)
-  ;; ORG_HOME is set in env/emacs.sh; fall back to ~/Org.
-  (org-directory (or (getenv "ORG_HOME") (expand-file-name "~/Org")))
-  (org-default-notes-file (dm-org-file "inbox"))
   ;; Visual preferences.
   (org-startup-indented t)
   (org-hide-leading-stars t)
@@ -171,13 +173,10 @@ VALUE is the value Org would otherwise display."
 
 (use-package org-agenda
   ;; Part of Org (installed via the `org' form above), so don't let straight
-  ;; try to manage it. `:defer t' keeps it lazy: it loads on first
-  ;; `M-x org-agenda', at which point `:config' runs. `:custom' settings apply
-  ;; at startup, which is harmless since `defcustom' won't clobber them.
+  ;; manage it. The agenda settings below wait until Evil and Org have loaded.
   :straight nil
   :after (evil org)
   :custom
-  (org-agenda-files (expand-file-name ".agenda-files.el" org-directory))
   (org-agenda-block-separator ?⎯)
   (org-agenda-entry-types '(:deadline :scheduled :timestamp :sexp))
   (org-agenda-format-date (lambda (date) (concat "\n" (org-agenda-format-date-aligned date))))
@@ -246,6 +245,7 @@ VALUE is the value Org would otherwise display."
 
 (defun dm-org-agenda-cycle--file-truenames ()
   "Return a cons of (ORIGINALS . TRUENAMES) for `org-agenda-files' (existing only)."
+  (require 'org)
   (let* ((orig (or (org-agenda-files t)
                    (user-error "No agenda files")))
          (tns  (mapcar #'file-truename orig)))

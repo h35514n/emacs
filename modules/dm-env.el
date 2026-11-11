@@ -2,14 +2,13 @@
 
 ;;; Commentary:
 
-;; Import shell environment variables needed by subprocesses. Deferred slightly
-;; so the first frame can come up before shell startup work runs.
+;; Import the shell environment before downstream modules use it to set paths.
 
 ;;; Code:
 
 (use-package exec-path-from-shell
   :if (memq window-system '(mac ns x))
-  :defer 0.1
+  :demand t
   :custom
   ;; Login-only: the vars come from zshenv; `-i' would run the slow zshrc.
   (exec-path-from-shell-arguments '("-l"))
