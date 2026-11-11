@@ -83,6 +83,9 @@
   :demand t
   :hook (org-mode . evil-org-mode)
   :config
+  (evil-define-key 'normal 'evil-org-mode
+    (kbd "H") #'org-shiftleft
+    (kbd "L") #'org-shiftright)
   ;; Agenda bindings only matter once `org-agenda' loads, which happens on
   ;; first `M-x org-agenda'. Don't pull in evil-org-agenda before then.
   (with-eval-after-load 'org-agenda
