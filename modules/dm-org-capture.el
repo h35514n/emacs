@@ -12,7 +12,7 @@
          :prepend t
          :after-finalize dm-org-capture--save-target-buffer-h)
 
-        ("y" "Yak Shave" entry (file+olp org-default-notes-file "Yak Shaves")
+        ("y" "Yak Shave" entry (file+olp org-default-notes-file "Inbox")
          "* TODO %?\n%i%a"
          :prepend t
          :after-finalize dm-org-capture--save-target-buffer-h)
@@ -22,32 +22,32 @@
          :prepend t :tree-type month
          :after-finalize dm-org-capture--save-target-buffer-h)
 
-        ("l" "Link"      entry (file+headline "links.org" "Inbox")
+        ("l" "Link"      entry (file+olp org-default-notes-file "Inbox")
          #'dm-org-capture--make-link-entry
          :prepend t :immediate-finish t
          :after-finalize dm-org-capture--save-target-buffer-h)
 
-        ("d" "Draft" entry (file+headline "lex/drafts.org" "Drafts")
+        ("d" "Draft" entry (file+headline "writing/drafts.org" "Drafts")
          (function dm-org-capture--hugo-draft)
          :prepend t :jump-to-captured t
          :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
-        ("s" "Scratch" entry (file+headline "lex/scratch.org" "Scratch")
+        ("s" "Scratch" entry (file+headline "writing/scratch.org" "Scratch")
          (function dm-org-capture--hugo-scratch)
          :prepend t
          :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
-        ("n" "Notebook" entry (file+headline "lex/notebook.org" "Notes")
+        ("n" "Notebook" entry (file+headline "reference/technical/notebook.org" "Notes")
          (function dm-org-capture--hugo-draft)
          :prepend t :jump-to-captured t
          :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
-        ("c" "Commonplace" entry (file+headline "lex/commonplaces.org" "Commonplaces")
+        ("c" "Commonplace" entry (file+headline "reference/collections/commonplaces.org" "Commonplaces")
          (function dm-org-capture--hugo-commonplace)
          :prepend t
          :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
 
-        ("m" "Marginalia" entry (file+headline "lex/marginalia.org" "Marginalia")
+        ("m" "Marginalia" entry (file+headline "reference/collections/marginalia.org" "Marginalia")
          (function dm-org-capture--hugo-marginalia)
          :prepend t
          :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)))
