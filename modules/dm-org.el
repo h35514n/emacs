@@ -83,9 +83,20 @@
   :demand t
   :hook (org-mode . evil-org-mode)
   :config
+  (defun evil-org-org-insert-subheading-respect-content-below ()
+    "Insert a subheading after the current subtree and enter Insert state."
+    (interactive)
+    ;; Stay on the current heading even when its subtree is folded.
+    (end-of-line)
+    (let ((org-insert-heading-respect-content t))
+      (call-interactively #'org-insert-subheading))
+    (evil-insert nil))
   (evil-define-key 'normal 'evil-org-mode
     (kbd "H") #'org-shiftleft
     (kbd "L") #'org-shiftright)
+  (evil-define-key '(normal insert) 'evil-org-mode
+    (kbd "<M-return>") #'evil-org-org-insert-subheading-respect-content-below
+    (kbd "M-RET") #'evil-org-org-insert-subheading-respect-content-below)
   ;; Agenda bindings only matter once `org-agenda' loads, which happens on
   ;; first `M-x org-agenda'. Don't pull in evil-org-agenda before then.
   (with-eval-after-load 'org-agenda
