@@ -14,7 +14,15 @@
   :init
   :hook ((dired-mode . dired-hide-details-mode))
   :custom
-  (dired-listing-switches "-Ah --group-directories-first"))
+  (dired-listing-switches "-lAh")
+  :config
+  ;; Use predictable, case-sensitive name sorting regardless of the ls
+  ;; executable or locale.  Keep punctuation significant (dotfiles first).
+  (require 'ls-lisp)
+  (setq ls-lisp-use-insert-directory-program nil
+        ls-lisp-ignore-case nil
+        ls-lisp-use-string-collate nil
+        ls-lisp-dirs-first t))
 
 (use-package visual-fill-column
   :custom
