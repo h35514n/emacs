@@ -416,11 +416,35 @@ regardless of count."
                 "Inappropriate ioctl for device"))
   "Regexp matching git output that indicates GPG signing, not the commit, failed.")
 
+(defun dm-org-persist--index-spelling (repo files)
+  "Resolve FILES to their spelling in REPO's index when possible.
+On case-insensitive filesystems, `git add' accepts alternate spellings
+that `git commit' rejects.  Compare file identity rather than blindly
+folding case, since case-sensitive filesystems can contain both names."
+  (pcase-let ((`(,code . ,output)
+               (dm-org-persist--git repo "ls-files" "-z")))
+    (if (not (zerop code))
+        files
+      (let ((tracked (split-string output "\0" t)))
+        (delete-dups
+         (mapcar
+          (lambda (file)
+            (or (and (member file tracked) file)
+                (cl-find-if
+                 (lambda (path)
+                   (and (string-equal (downcase file) (downcase path))
+                        (file-equal-p (expand-file-name file repo)
+                                      (expand-file-name path repo))))
+                 tracked)
+                file))
+          files))))))
+
 (defun dm-org-persist--commit (repo files message)
   "Stage FILES in REPO and commit them with MESSAGE.
 
 Return `committed' on success, `no-op' when FILES turn out to hold no
 change, and `retry' when something failed and the events should be kept."
+  (setq files (dm-org-persist--index-spelling repo files))
   (pcase-let ((`(,added . ,add-output)
                (apply #'dm-org-persist--git repo "add" "--" files)))
     (if (not (zerop added))

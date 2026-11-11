@@ -376,6 +376,26 @@ signing settings cannot leak into the suite."
     (should (equal "unrelated.txt" (dm-org-persist-tests--unstaged repo)))
     (should (equal "" (dm-org-persist-tests--staged repo)))))
 
+(ert-deftest dm-org-persist-commit/uses-index-case-on-insensitive-filesystems ()
+  (dm-org-persist-tests--with-repo
+    (skip-unless (file-exists-p (expand-file-name "org/TASKS.org" repo)))
+    (dm-org-persist--git repo "config" "core.ignorecase" "true")
+    (dm-org-persist-tests--write repo "org/TASKS.org" "* DONE Water plants\n")
+    (should (eq 'committed
+                (dm-org-persist--commit repo '("org/TASKS.org") "Mark it done")))
+    (should (equal "org/tasks.org"
+                   (dm-org-persist-tests--run repo "show" "--name-only" "--format=" "HEAD")))
+    (should (equal "" (dm-org-persist-tests--unstaged repo)))))
+
+(ert-deftest dm-org-persist-commit/preserves-distinct-case-sensitive-files ()
+  (dm-org-persist-tests--with-repo
+    (skip-unless (not (file-exists-p (expand-file-name "org/TASKS.org" repo))))
+    (dm-org-persist-tests--write repo "org/TASKS.org" "* Separate file\n")
+    (should (eq 'committed
+                (dm-org-persist--commit repo '("org/TASKS.org") "Add separate file")))
+    (should (equal "org/TASKS.org"
+                   (dm-org-persist-tests--run repo "show" "--name-only" "--format=" "HEAD")))))
+
 (ert-deftest dm-org-persist-commit/leaves-hand-staged-work-alone ()
   ;; Someone has staged an unrelated file by hand.  An automated commit must
   ;; not sweep it into history behind their back.
