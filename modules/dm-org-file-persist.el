@@ -149,6 +149,9 @@ tracked file carrying unstaged changes, and so on.
 Nil means Git has nothing to record for this path -- it is ignored, or the
 save left the content Git already has.  Either way, an event would name a
 file the commit could not honor."
+  ;; Git pathspecs are case-sensitive even on a case-insensitive filesystem.
+  ;; Use the index spelling, just as the commit path does.
+  (setq file (car (dm-org-persist--index-spelling repo (list file))))
   (pcase-let ((`(,code . ,out)
                (dm-org-persist--git repo "status" "--porcelain" "--" file)))
     (when (zerop code)

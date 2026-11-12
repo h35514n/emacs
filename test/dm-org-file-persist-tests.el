@@ -152,6 +152,12 @@ repository, and Org's two entry points are stubbed."
     (dm-org-file-persist-tests--write repo "org/links/scratch.org" "* Links\n")
     (should (equal "??" (dm-org-file-persist-status repo "org/links/scratch.org")))))
 
+(ert-deftest dm-org-file-persist-status/resolves-case-insensitive-file-spelling ()
+  (dm-org-file-persist-tests--with-repo
+    (skip-unless (file-exists-p (expand-file-name "org/TASKS.org" repo)))
+    (dm-org-file-persist-tests--write repo "org/TASKS.org" "* TODO Changed\n")
+    (should (equal "M" (dm-org-file-persist-status repo "org/TASKS.org")))))
+
 (ert-deftest dm-org-file-persist-status/is-nil-for-an-ignored-file ()
   ;; The one that matters most: `git add' on an ignored path exits non-zero,
   ;; which would make every later flush retry and keep its queue forever.
