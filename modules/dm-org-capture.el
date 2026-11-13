@@ -50,7 +50,55 @@
         ("m" "Marginalia" entry (file+headline "reference/collections/marginalia.org" "Marginalia")
          (function dm-org-capture--hugo-marginalia)
          :prepend t
-         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)))
+         :after-finalize dm-org-hugo-capture--save-and-export-target-buffer-h)
+
+        ("u" "Standup" plain (file+olp+datetree "STANDUP.org")
+         (function dm-org-capture--standup)
+         :tree-type week :unnarrowed t :jump-to-captured t
+         :after-finalize dm-org-capture--save-target-buffer-h)))
+
+(defun dm-org-capture--standup-section (text date)
+  "Return the body of the day entry for DATE in TEXT, or nil.
+DATE is a string like \"2026-11-13\"."
+  (when (string-match
+         (concat "^\\*\\*\\* " (regexp-quote date) "\\b.*\n"
+                 "\\(\\(?:^[^*\n].*\n?\\|^\\*[^*\n].*\n?\\|^\n\\)*\\)")
+         text)
+    (match-string 1 text)))
+
+(defun dm-org-capture--standup-previous-today (text today)
+  "Return the `*Today*:' items from the latest day before TODAY in TEXT.
+TEXT is the contents of STANDUP.org and TODAY is a \"YYYY-MM-DD\" string.
+Return nil when no earlier day has any items."
+  (let ((best nil) (pos 0))
+    (while (string-match "^\\*\\*\\* \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)\\b"
+                         text pos)
+      (let ((d (match-string 1 text)))
+        (setq pos (match-end 0))
+        (when (and (string< d today) (or (null best) (string< best d)))
+          (setq best d))))
+    (when-let* ((body (and best (dm-org-capture--standup-section text best)))
+                ((string-match
+                  "^\\*Today\\*:[ \t]*\n\\(\\(?:\\(?:[ \t]*[-+0-9].*\\|[ \t]+.*\\)\n?\\)*\\)"
+                  body))
+                (items (string-trim-right (match-string 1 body)))
+                ((not (string-empty-p items))))
+      items)))
+
+(defun dm-org-capture--standup ()
+  "Return `org-capture' template string for today's standup entry.
+Prefill *Yesterday* from the previous entry's *Today* items."
+  (let* ((file (expand-file-name "STANDUP.org" org-directory))
+         (text (if (file-readable-p file)
+                   (with-temp-buffer (insert-file-contents file) (buffer-string))
+                 ""))
+         (today (format-time-string "%Y-%m-%d")))
+    (when-let* ((section (dm-org-capture--standup-section text today))
+                ((string-match-p "^\\*Yesterday\\*:" section)))
+      (user-error "Standup entry for %s already exists" today))
+    (concat "*Yesterday*:\n"
+            (or (dm-org-capture--standup-previous-today text today) "- ")
+            "\n*Today*:\n- %?\n*Blocked / Waiting*:\n- \n")))
 
 (defun dm-org-capture--hugo-commonplace ()
   "Return `org-capture' template string for new Hugo commonplace post.
