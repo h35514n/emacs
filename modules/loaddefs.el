@@ -485,6 +485,21 @@ Nothing is written; the proposal opens in a preview buffer.
 Preserve the exact number string and require an existing regular file." t)
 (register-definition-prefixes "dm-latex" '("dm-latex-"))
 
+
+
+;;; Generated autoloads from dm-org-markdown.el
+
+(autoload 'dm-org-to-markdown "dm-org-markdown"
+"Return TEXT converted from Org markup to Markdown.
+Every list is followed by a blank line.  ABBREVS is an alist of
+(NAME . TEMPLATE) used to expand link abbreviations such as `jira:API-1'.
+
+(fn TEXT &optional ABBREVS)")
+(autoload 'dm-org-region-to-markdown "dm-org-markdown"
+"Copy the Org text between BEG and END to the clipboard as Markdown.
+
+(fn BEG END)" t)
+(register-definition-prefixes "dm-org-markdown" '("dm-org-markdown--"))
 
 ;;; End of scraped data
 

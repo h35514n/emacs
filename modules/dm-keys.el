@@ -87,13 +87,14 @@
     "m RET" '(bookmark-set    :which-key "set")
 
     ;; Org
-    "o"   '(:ignore t              :which-key "org")
-    "o a" '(org-agenda             :which-key "agenda")
-    "o c" '(org-capture            :which-key "capture")
-    "o f" '(consult-org-agenda     :which-key "find")
-    "o p" '(dm-org-persist-pull    :which-key "pull")
-    "o A" '(org-cycle-agenda-files :which-key "cycle agenda files")
+    "o"   '(:ignore t                        :which-key "org")
+    "o a" '(org-agenda                       :which-key "agenda")
+    "o c" '(org-capture                      :which-key "capture")
+    "o f" '(consult-org-agenda               :which-key "find")
+    "o p" '(dm-org-persist-pull              :which-key "pull")
+    "o A" '(org-cycle-agenda-files           :which-key "cycle agenda files")
     "o d" '(dm-org-clear-planning-on-subtree :which-key "clear dates")
+    "o m" '(dm-org-region-to-markdown        :which-key "region to markdown")
 
     ;; Toggle / Test
     "t"   '(:ignore t              :which-key "toggle/test")
