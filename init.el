@@ -43,6 +43,7 @@
 (require 'dm-org-agenda-persist)
 (require 'dm-org-file-persist)
 (require 'dm-org-agenda-plan)
+(require 'dm-org-cycle-time)
 (require 'dm-langs)
 (require 'dm-latex)
 (require 'dm-keys)

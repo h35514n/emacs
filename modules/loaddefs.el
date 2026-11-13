@@ -500,6 +500,16 @@ Every list is followed by a blank line.  ABBREVS is an alist of
 
 (fn BEG END)" t)
 (register-definition-prefixes "dm-org-markdown" '("dm-org-markdown--"))
+
+
+;;; Generated autoloads from dm-org-cycle-time.el
+
+(autoload 'org-dblock-write:cycle-time "dm-org-cycle-time"
+"Write the cycle-time table for a `#+BEGIN: cycle-time' dynamic block.
+
+(fn PARAMS)")
+(register-definition-prefixes "dm-org-cycle-time" '("dm-org-cycle-time-"))
+
 
 ;;; End of scraped data
 
