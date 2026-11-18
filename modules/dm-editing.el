@@ -44,6 +44,11 @@
   :mode (("\\.md\\'" . gfm-mode)
          ("\\.markdown\\'" . gfm-mode)))
 
+(use-package jira-markup-mode
+  :straight (:type git :host github :repo "mnuessler/jira-markup-mode")
+  :mode (("\\.jira\\'" . jira-markup-mode)
+         ("\\.confluence\\'" . jira-markup-mode)))
+
 (use-package hideshow
   ;; Evil's z* folds need one supported backend. Elisp does not always get
   ;; `treesit-fold-mode', so keep a sexp-based fallback active there.
