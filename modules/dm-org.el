@@ -93,6 +93,18 @@
     (let ((org-insert-heading-respect-content t))
       (call-interactively #'org-insert-subheading))
     (evil-insert nil))
+  (defun dm-org-insert-heading-below ()
+    "Insert a same-level heading after the current subtree and enter Insert state."
+    (interactive)
+    ;; Evil-Org's normal-state C-RET wrapper uses `end-of-visible-line',
+    ;; which moves into a folded child and picks the wrong heading level.
+    (call-interactively #'org-insert-heading-respect-content)
+    (evil-insert nil))
+  (defun dm-org-insert-todo-heading-below ()
+    "Insert a same-level TODO heading after the subtree and enter Insert state."
+    (interactive)
+    (call-interactively #'org-insert-todo-heading-respect-content)
+    (evil-insert nil))
   (defun dm-org-empty-heading-at-title-start-p ()
     "Return non-nil when point is just after an empty heading's stars."
     (and (org-at-heading-p)
@@ -120,6 +132,10 @@
     (kbd "<backtab>") #'dm-org-insert-backtab
     (kbd "S-TAB") #'dm-org-insert-backtab)
   (evil-define-key '(normal insert) 'evil-org-mode
+    (kbd "<C-return>") #'dm-org-insert-heading-below
+    (kbd "C-RET") #'dm-org-insert-heading-below
+    (kbd "<C-S-return>") #'dm-org-insert-todo-heading-below
+    (kbd "C-S-RET") #'dm-org-insert-todo-heading-below
     (kbd "<M-return>") #'evil-org-org-insert-subheading-respect-content-below
     (kbd "M-RET") #'evil-org-org-insert-subheading-respect-content-below)
   ;; Agenda bindings only matter once `org-agenda' loads, which happens on
