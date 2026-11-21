@@ -93,20 +93,32 @@
     (let ((org-insert-heading-respect-content t))
       (call-interactively #'org-insert-subheading))
     (evil-insert nil))
+  (defun dm-org-empty-heading-at-title-start-p ()
+    "Return non-nil when point is just after an empty heading's stars."
+    (and (org-at-heading-p)
+         (eolp)
+         (looking-back "^\\*+ " (line-beginning-position))))
   (defun dm-org-insert-tab ()
     "Demote an empty heading at its title start, otherwise use the usual TAB."
     (interactive)
-    (if (and (org-at-heading-p)
-             (eolp)
-             (looking-back "^\\*+ " (line-beginning-position)))
+    (if (dm-org-empty-heading-at-title-start-p)
         (org-demote)
       (call-interactively #'dm-tab-dwim)))
+  (defun dm-org-insert-backtab ()
+    "Promote an empty heading at its title start, otherwise use Org's S-TAB."
+    (interactive)
+    (if (dm-org-empty-heading-at-title-start-p)
+        (when (> (org-current-level) 1)
+          (org-promote))
+      (call-interactively #'org-shifttab)))
   (evil-define-key 'normal 'evil-org-mode
     (kbd "H") #'org-shiftleft
     (kbd "L") #'org-shiftright)
   (evil-define-key 'insert 'evil-org-mode
     (kbd "<tab>") #'dm-org-insert-tab
-    (kbd "TAB") #'dm-org-insert-tab)
+    (kbd "TAB") #'dm-org-insert-tab
+    (kbd "<backtab>") #'dm-org-insert-backtab
+    (kbd "S-TAB") #'dm-org-insert-backtab)
   (evil-define-key '(normal insert) 'evil-org-mode
     (kbd "<M-return>") #'evil-org-org-insert-subheading-respect-content-below
     (kbd "M-RET") #'evil-org-org-insert-subheading-respect-content-below)
