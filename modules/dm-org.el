@@ -93,9 +93,20 @@
     (let ((org-insert-heading-respect-content t))
       (call-interactively #'org-insert-subheading))
     (evil-insert nil))
+  (defun dm-org-insert-tab ()
+    "Demote an empty heading at its title start, otherwise use the usual TAB."
+    (interactive)
+    (if (and (org-at-heading-p)
+             (eolp)
+             (looking-back "^\\*+ " (line-beginning-position)))
+        (org-demote)
+      (call-interactively #'dm-tab-dwim)))
   (evil-define-key 'normal 'evil-org-mode
     (kbd "H") #'org-shiftleft
     (kbd "L") #'org-shiftright)
+  (evil-define-key 'insert 'evil-org-mode
+    (kbd "<tab>") #'dm-org-insert-tab
+    (kbd "TAB") #'dm-org-insert-tab)
   (evil-define-key '(normal insert) 'evil-org-mode
     (kbd "<M-return>") #'evil-org-org-insert-subheading-respect-content-below
     (kbd "M-RET") #'evil-org-org-insert-subheading-respect-content-below)
