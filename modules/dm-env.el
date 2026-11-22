@@ -17,6 +17,7 @@
      "CARGO_HOME"
      "DOCKER_HOST"
      "GIT_CG_PROVIDER"
+     "GNUPGHOME"
      "GOPATH"
      "HEX_HOME"
      "HOMEBREW_PREFIX"
