@@ -72,9 +72,9 @@
 ;;     with what is on screen.
 ;;   - Staging or committing fails: warn with git's own output and keep the
 ;;     queue.  Nothing reports success it did not have.
-;;   - GPG signing fails: retry once with --no-gpg-sign, if
-;;     `dm-org-persist-sign-fallback' allows, and say so.  Losing a signature
-;;     is recoverable; losing the mutation is not.
+;;   - GPG cannot prompt without a TTY: unlock the signing key through
+;;     EasyPG's Emacs prompt and retry the signed commit.  If signing still
+;;     fails, retry unsigned when `dm-org-persist-sign-fallback' allows.
 ;;   - Pushing fails: the local commit stands, the failure is reported, and
 ;;     the next push carries the backlog.  Git history is never rewritten,
 ;;     reset, or force-pushed.
@@ -188,8 +188,8 @@ and drop the JSON records that make the history queryable."
 
 With `commit.gpgsign' set, an automated commit runs GPG from whatever
 environment Emacs was started in, which may have no usable pinentry or a
-cold agent cache.  Retrying unsigned keeps the mutation; the fallback is
-always reported."
+cold agent cache.  After an Emacs passphrase prompt and signed retry fail,
+retrying unsigned keeps the mutation; the fallback is always reported."
   :type 'boolean
   :group 'dm-org-persist)
 
@@ -416,6 +416,30 @@ regardless of count."
                 "Inappropriate ioctl for device"))
   "Regexp matching git output that indicates GPG signing, not the commit, failed.")
 
+(defconst dm-org-persist--missing-pinentry-regexp
+  (regexp-opt '("cannot open '/dev/tty'"
+                "Inappropriate ioctl for device"))
+  "Regexp matching GPG failures caused by an unavailable terminal prompt.")
+
+(defun dm-org-persist--unlock-signing-key (repo)
+  "Prompt for REPO's Git signing key through EasyPG to warm gpg-agent.
+
+Git runs without a TTY here, so its GPG subprocess cannot handle a
+loopback passphrase request.  EasyPG can route that request to Emacs."
+  (require 'epg)
+  (pcase-let ((`(,code . ,output)
+               (dm-org-persist--git repo "config" "--get" "user.signingkey")))
+    (when (zerop code)
+      (let* ((epg-pinentry-mode 'loopback)
+             (key-id (string-trim output))
+             (context (epg-make-context))
+             (key (car (epg-list-keys context key-id 'secret))))
+        (unless key
+          (error "Git signing key %s is not available to EasyPG" key-id))
+        (epg-context-set-signers context (list key))
+        (epg-sign-string context "Unlock Git signing key" 'detached)
+        t))))
+
 (defun dm-org-persist--index-spelling (repo files)
   "Resolve FILES to their spelling in REPO's index when possible.
 On case-insensitive filesystems, `git add' accepts alternate spellings
@@ -460,13 +484,22 @@ change, and `retry' when something failed and the events should be kept."
            'retry)))))
 
 (defun dm-org-persist--run-commit (repo files message)
-  "Commit FILES in REPO with MESSAGE, retrying unsigned if signing fails.
+  "Commit FILES in REPO with MESSAGE, prompting if signing needs a TTY.
 
 FILES is passed as a pathspec, so anything staged by hand outside that set
 stays staged and uncommitted."
-  (pcase-let ((`(,code . ,output)
-               (apply #'dm-org-persist--git repo
-                      (append (list "commit" "-m" message "--") files))))
+  (let* ((args (append (list "commit" "-m" message "--") files))
+         (result (apply #'dm-org-persist--git repo args))
+         (code (car result))
+         (output (cdr result)))
+    (when (and (not (zerop code))
+               (string-match-p dm-org-persist--missing-pinentry-regexp output)
+               (condition-case nil
+                   (dm-org-persist--unlock-signing-key repo)
+                 ((error quit) nil)))
+      (setq result (apply #'dm-org-persist--git repo args)
+            code (car result)
+            output (cdr result)))
     (cond
      ((zerop code)
       (dm-org-persist--log "✓ Org agenda committed: %s" (car (split-string message "\n")))

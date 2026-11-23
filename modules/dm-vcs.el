@@ -146,8 +146,8 @@ FN and ARGS are the advised `treesit-auto--set-major-remap' arguments."
   (setq diff-hl-show-hunk-function #'diff-hl-show-hunk-posframe)
   (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh))
 
-;; Route GPG passphrase prompts through the Emacs minibuffer instead of a TTY
-;; pinentry. Required for GPG commit signing to work in Magit's subprocess.
+;; Let EasyPG request passphrases in the minibuffer.  Git subprocesses do not
+;; use EasyPG; dm-org-persist uses it to unlock the signing key when needed.
 ;; GNUPGHOME is set by the XDG LaunchAgent.
 (setq epg-pinentry-mode 'loopback)
 
