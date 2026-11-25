@@ -4,8 +4,9 @@
 
 ;; Builds the "Ticket Durations" table in TICKETS.org.  For every heading
 ;; whose title starts with a ticket ID (`API-123:'), the LOGBOOK state-change
-;; lines give three milestones: the first WIP, the first IN_REVIEW and the
-;; latest APPROVED.  The table shows weekdays between them.
+;; lines give three milestones: the first WIP, the first IN_REVIEW, the
+;; latest APPROVED and the latest DONE.  The table shows weekdays between
+;; them.
 ;;
 ;; The ticket ID is read from the heading as displayed, so a heading whose
 ;; label is an Org link (`[[jira:API-1][API-1]]: Title') matches like a plain
@@ -24,7 +25,7 @@
   "Regexp matching a ticket ID at the start of a displayed heading.")
 
 (defconst dm-org-cycle-time--state-regexp
-  (concat "^[ \t]*- State \"\\(WIP\\|IN_REVIEW\\|APPROVED\\)\".*"
+  (concat "^[ \t]*- State \"\\(WIP\\|IN_REVIEW\\|APPROVED\\|DONE\\)\".*"
           "\\[\\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)[^]]*\\]")
   "Regexp matching a milestone state-change line in a LOGBOOK.")
 
@@ -35,8 +36,8 @@
       (match-string 1 title))))
 
 (defun dm-org-cycle-time--milestones (end)
-  "Return (STARTED REVIEWED APPROVED) ISO dates from the LOGBOOK before END."
-  (let (started reviewed approved)
+  "Return (STARTED REVIEWED APPROVED DONE) ISO dates from the LOGBOOK before END."
+  (let (started reviewed approved done)
     (when (re-search-forward "^[ \t]*:LOGBOOK:[ \t]*$" end t)
       (let ((log-end (save-excursion
                        (re-search-forward "^[ \t]*:END:[ \t]*$" end t))))
@@ -50,14 +51,16 @@
                 ("IN_REVIEW" (when (or (null reviewed) (string< date reviewed))
                                (setq reviewed date)))
                 ("APPROVED" (when (or (null approved) (string< approved date))
-                              (setq approved date)))))))))
-    (list started reviewed approved)))
+                              (setq approved date)))
+                ("DONE" (when (or (null done) (string< done date))
+                          (setq done date)))))))))
+    (list started reviewed approved done)))
 
 (defun dm-org-cycle-time--weekdays (from to)
-  "Return signed weekdays from FROM to TO (ISO dates), or \"\" if either is nil.
+  "Return signed weekdays from FROM to TO (ISO dates), or \"-\" if either is nil.
 Count includes FROM and excludes TO.  Reversed dates give a negative count."
   (if (not (and from to))
-      ""
+      "-"
     (let* ((start (org-time-string-to-absolute from))
            (end (org-time-string-to-absolute to))
            (day (min start end))
@@ -71,10 +74,10 @@ Count includes FROM and excludes TO.  Reversed dates give a negative count."
       (* (if (> start end) -1 1) count))))
 
 (defun dm-org-cycle-time--short-date (date)
-  "Format ISO DATE as MM/DD, or \"\" when DATE is nil."
-  (if date (subst-char-in-string ?- ?/ (substring date 5)) ""))
+  "Format ISO DATE as MM/DD, or \"-\" when DATE is nil."
+  (if date (subst-char-in-string ?- ?/ (substring date 5)) "-"))
 
-(defun dm-org-cycle-time--row (ticket started reviewed approved)
+(defun dm-org-cycle-time--row (ticket started reviewed approved done)
   "Return a table row for TICKET from its milestone dates."
   (list ticket
         (dm-org-cycle-time--short-date started)
@@ -82,7 +85,9 @@ Count includes FROM and excludes TO.  Reversed dates give a negative count."
         (dm-org-cycle-time--short-date reviewed)
         (dm-org-cycle-time--weekdays reviewed approved)
         (dm-org-cycle-time--short-date approved)
-        (dm-org-cycle-time--weekdays started approved)))
+        (dm-org-cycle-time--weekdays approved done)
+        (dm-org-cycle-time--short-date done)
+        (dm-org-cycle-time--weekdays started (or done approved))))
 
 (defun dm-org-cycle-time-table ()
   "Return the cycle-time table for the current Org buffer."
@@ -94,14 +99,15 @@ Count includes FROM and excludes TO.  Reversed dates give a negative count."
          (lambda ()
            (when-let* ((ticket (dm-org-cycle-time--ticket)))
              (let ((end (save-excursion (outline-next-heading) (point))))
-               (pcase-let ((`(,started ,reviewed ,approved)
+               (pcase-let ((`(,started ,reviewed ,approved ,done)
                             (save-excursion
                               (dm-org-cycle-time--milestones end))))
-                 (when (or started reviewed approved)
+                 (when (or started reviewed approved done)
                    (push (dm-org-cycle-time--row
-                          ticket started reviewed approved)
+                          ticket started reviewed approved done)
                          rows)))))))))
-    (append '(("Ticket" "Started" "WIP" "In review" "PR" "Approved" "Total")
+    (append '(("Ticket" "Started" "WIP" "In review" "PR" "Approved" "To done" "Done"
+                "Total")
               hline)
             (nreverse rows))))
 
