@@ -61,5 +61,9 @@
       (should (equal (car kill-ring)
                      "- [A-1](https://j.example/browse/A-1)\n\n")))))
 
+(ert-deftest dm-org-markdown-test-code-before-link-terminates ()
+  (should (equal (dm-org-to-markdown "on =dev=, [[https://x/y][PR]]")
+                 "on `dev`, [PR](https://x/y)\n")))
+
 (provide 'dm-org-markdown-tests)
 ;;; dm-org-markdown-tests.el ends here
