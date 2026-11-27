@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(defvar org-overriding-default-time)
+
 (setq org-capture-templates
       '(("i" "Inbox"     entry (file+olp org-default-notes-file "Inbox")
          "* TODO %?\n%i%a"
@@ -113,7 +115,7 @@ over its *Blocked / Waiting* items."
          (text (if (file-readable-p file)
                    (with-temp-buffer (insert-file-contents file) (buffer-string))
                  ""))
-         (today (format-time-string "%Y-%m-%d")))
+         (today (format-time-string "%Y-%m-%d" org-overriding-default-time)))
     (when-let* ((section (dm-org-capture--standup-section text today))
                 ((string-match-p "^\\*[^*\n]+\\*:" section)))
       (user-error "Standup entry for %s already exists" today))
@@ -126,6 +128,23 @@ over its *Blocked / Waiting* items."
             "\n*Today*:\n- %?\n*Blocked / Waiting*:\n"
             (or (dm-org-capture--standup-previous-blocked text today) "- ")
             "\n")))
+
+(defun dm-org-capture--next-workday (time)
+  "Return TIME advanced to the next weekday, skipping Saturday and Sunday."
+  (let* ((dow (string-to-number (format-time-string "%u" time)))
+         (days (pcase dow (5 3) (6 2) (_ 1))))
+    (time-add time (* days 24 60 60))))
+
+;;;###autoload
+(defun dm-org-capture-standup (&optional tomorrow)
+  "Capture a standup entry for today, or for the next workday with prefix TOMORROW.
+Friday and the weekend roll over to Monday.
+Tomorrow's entry carries forward today's *Today* and *Blocked / Waiting*
+items."
+  (interactive "P")
+  (let ((org-overriding-default-time
+         (and tomorrow (dm-org-capture--next-workday (current-time)))))
+    (org-capture nil "u")))
 
 (defun dm-org-capture--hugo-commonplace ()
   "Return `org-capture' template string for new Hugo commonplace post.

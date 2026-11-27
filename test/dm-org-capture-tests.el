@@ -10,6 +10,7 @@
 (require 'subr-x)
 (defvar org-capture-templates)
 (defvar org-directory)
+(defvar org-overriding-default-time)
 (require 'dm-org-capture)
 
 (defconst dm-org-capture-tests--standup
@@ -47,6 +48,29 @@
     (should-not (dm-org-capture--standup-previous-blocked
                  "*** 2026-11-12 Thursday\n*Today*:\n- a\n*Blocked / Waiting*:\n- \n"
                  "2026-11-13"))))
+
+(ert-deftest dm-org-capture-standup-tomorrow-template ()
+  (let* ((org-directory (make-temp-file "standup" t))
+         (org-overriding-default-time (encode-time 0 0 12 14 11 2026)))
+    (unwind-protect
+        (progn
+          (with-temp-file (expand-file-name "STANDUP.org" org-directory)
+            (insert "*** 2026-11-13 Friday\n*Today*:\n- a\n- b\n"
+                    "*Blocked / Waiting*:\n- waiting\n"))
+          (should (equal (dm-org-capture--standup)
+                         (concat "*Friday*:\n- a\n- b\n*Today*:\n- %?\n"
+                                 "*Blocked / Waiting*:\n- waiting\n"))))
+      (delete-directory org-directory t))))
+
+(ert-deftest dm-org-capture-next-workday-skips-weekend ()
+  (let ((fmt (lambda (d m)
+               (format-time-string
+                "%F" (dm-org-capture--next-workday
+                      (encode-time 0 0 12 d m 2026))))))
+    (should (equal (funcall fmt 26 11) "2026-11-27"))
+    (should (equal (funcall fmt 27 11) "2026-11-30"))
+    (should (equal (funcall fmt 28 11) "2026-11-30"))
+    (should (equal (funcall fmt 29 11) "2026-11-30"))))
 
 (ert-deftest dm-org-capture-standup-template-registered ()
   (should (assoc "u" org-capture-templates)))

@@ -358,6 +358,13 @@ otherwise kill Emacs." t)
 
 ;;; Generated autoloads from dm-org-capture.el
 
+(autoload 'dm-org-capture-standup "dm-org-capture"
+"Capture a standup entry for today, or for the next workday with prefix TOMORROW.
+Friday and the weekend roll over to Monday.
+Tomorrow's entry carries forward today's *Today* and *Blocked / Waiting*
+items.
+
+(fn &optional TOMORROW)" t)
 (register-definition-prefixes "dm-org-capture" '("dm-org-capture--"))
 
 

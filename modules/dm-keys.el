@@ -90,6 +90,7 @@
     "o"   '(:ignore t                        :which-key "org")
     "o a" '(org-agenda                       :which-key "agenda")
     "o c" '(org-capture                      :which-key "capture")
+    "o u" '(dm-org-capture-standup           :which-key "standup (C-u: tomorrow)")
     "o f" '(consult-org-agenda               :which-key "find")
     "o p" '(dm-org-persist-pull              :which-key "pull")
     "o A" '(org-cycle-agenda-files           :which-key "cycle agenda files")
