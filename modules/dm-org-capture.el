@@ -66,11 +66,8 @@ DATE is a string like \"2026-11-13\"."
          text)
     (match-string 1 text)))
 
-(defun dm-org-capture--standup-previous-items (text today label)
-  "Return the LABEL items from the latest day before TODAY in TEXT.
-TEXT is the contents of STANDUP.org and TODAY is a \"YYYY-MM-DD\" string.
-LABEL is the section name, such as \"Today\".  Return nil when no earlier
-day has any items."
+(defun dm-org-capture--standup-previous-date (text today)
+  "Return the latest \"YYYY-MM-DD\" day entry before TODAY in TEXT, or nil."
   (let ((best nil) (pos 0))
     (while (string-match "^\\*\\*\\* \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)\\b"
                          text pos)
@@ -78,14 +75,27 @@ day has any items."
         (setq pos (match-end 0))
         (when (and (string< d today) (or (null best) (string< best d)))
           (setq best d))))
-    (when-let* ((body (and best (dm-org-capture--standup-section text best)))
-                ((string-match
-                  (concat "^\\*" (regexp-quote label) "\\*:[ \t]*\n"
-                          "\\(\\(?:\\(?:[ \t]*[-+0-9].*\\|[ \t]+.*\\)\n?\\)*\\)")
-                  body))
-                (items (string-trim-right (match-string 1 body)))
-                ((not (string-match-p "\\`[ \t]*-?[ \t]*\\'" items))))
-      items)))
+    best))
+
+(defun dm-org-capture--standup-day-name (date)
+  "Return the weekday name for DATE, a \"YYYY-MM-DD\" string."
+  (pcase-let ((`(,y ,m ,d) (mapcar #'string-to-number (split-string date "-"))))
+    (format-time-string "%A" (encode-time 0 0 12 d m y))))
+
+(defun dm-org-capture--standup-previous-items (text today label)
+  "Return the LABEL items from the latest day before TODAY in TEXT.
+TEXT is the contents of STANDUP.org and TODAY is a \"YYYY-MM-DD\" string.
+LABEL is the section name, such as \"Today\".  Return nil when no earlier
+day has any items."
+  (when-let* ((best (dm-org-capture--standup-previous-date text today))
+              (body (dm-org-capture--standup-section text best))
+              ((string-match
+                (concat "^\\*" (regexp-quote label) "\\*:[ \t]*\n"
+                        "\\(\\(?:\\(?:[ \t]*[-+0-9].*\\|[ \t]+.*\\)\n?\\)*\\)")
+                body))
+              (items (string-trim-right (match-string 1 body)))
+              ((not (string-match-p "\\`[ \t]*-?[ \t]*\\'" items))))
+    items))
 
 (defun dm-org-capture--standup-previous-today (text today)
   "Return the `*Today*:' items from the latest day before TODAY in TEXT."
@@ -97,7 +107,7 @@ day has any items."
 
 (defun dm-org-capture--standup ()
   "Return `org-capture' template string for today's standup entry.
-Prefill *Yesterday* from the previous entry's *Today* items and carry
+Prefill a section named for the previous entry's weekday from the previous entry's *Today* items and carry
 over its *Blocked / Waiting* items."
   (let* ((file (expand-file-name "STANDUP.org" org-directory))
          (text (if (file-readable-p file)
@@ -105,9 +115,13 @@ over its *Blocked / Waiting* items."
                  ""))
          (today (format-time-string "%Y-%m-%d")))
     (when-let* ((section (dm-org-capture--standup-section text today))
-                ((string-match-p "^\\*Yesterday\\*:" section)))
+                ((string-match-p "^\\*[^*\n]+\\*:" section)))
       (user-error "Standup entry for %s already exists" today))
-    (concat "*Yesterday*:\n"
+    (concat "*"
+            (if-let* ((prev (dm-org-capture--standup-previous-date text today)))
+                (dm-org-capture--standup-day-name prev)
+              "Yesterday")
+            "*:\n"
             (or (dm-org-capture--standup-previous-today text today) "- ")
             "\n*Today*:\n- %?\n*Blocked / Waiting*:\n"
             (or (dm-org-capture--standup-previous-blocked text today) "- ")
