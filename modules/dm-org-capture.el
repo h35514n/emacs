@@ -66,10 +66,11 @@ DATE is a string like \"2026-11-13\"."
          text)
     (match-string 1 text)))
 
-(defun dm-org-capture--standup-previous-today (text today)
-  "Return the `*Today*:' items from the latest day before TODAY in TEXT.
+(defun dm-org-capture--standup-previous-items (text today label)
+  "Return the LABEL items from the latest day before TODAY in TEXT.
 TEXT is the contents of STANDUP.org and TODAY is a \"YYYY-MM-DD\" string.
-Return nil when no earlier day has any items."
+LABEL is the section name, such as \"Today\".  Return nil when no earlier
+day has any items."
   (let ((best nil) (pos 0))
     (while (string-match "^\\*\\*\\* \\([0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}\\)\\b"
                          text pos)
@@ -79,15 +80,25 @@ Return nil when no earlier day has any items."
           (setq best d))))
     (when-let* ((body (and best (dm-org-capture--standup-section text best)))
                 ((string-match
-                  "^\\*Today\\*:[ \t]*\n\\(\\(?:\\(?:[ \t]*[-+0-9].*\\|[ \t]+.*\\)\n?\\)*\\)"
+                  (concat "^\\*" (regexp-quote label) "\\*:[ \t]*\n"
+                          "\\(\\(?:\\(?:[ \t]*[-+0-9].*\\|[ \t]+.*\\)\n?\\)*\\)")
                   body))
                 (items (string-trim-right (match-string 1 body)))
-                ((not (string-empty-p items))))
+                ((not (string-match-p "\\`[ \t]*-?[ \t]*\\'" items))))
       items)))
+
+(defun dm-org-capture--standup-previous-today (text today)
+  "Return the `*Today*:' items from the latest day before TODAY in TEXT."
+  (dm-org-capture--standup-previous-items text today "Today"))
+
+(defun dm-org-capture--standup-previous-blocked (text today)
+  "Return the `*Blocked / Waiting*:' items from the latest day before TODAY."
+  (dm-org-capture--standup-previous-items text today "Blocked / Waiting"))
 
 (defun dm-org-capture--standup ()
   "Return `org-capture' template string for today's standup entry.
-Prefill *Yesterday* from the previous entry's *Today* items."
+Prefill *Yesterday* from the previous entry's *Today* items and carry
+over its *Blocked / Waiting* items."
   (let* ((file (expand-file-name "STANDUP.org" org-directory))
          (text (if (file-readable-p file)
                    (with-temp-buffer (insert-file-contents file) (buffer-string))
@@ -98,7 +109,9 @@ Prefill *Yesterday* from the previous entry's *Today* items."
       (user-error "Standup entry for %s already exists" today))
     (concat "*Yesterday*:\n"
             (or (dm-org-capture--standup-previous-today text today) "- ")
-            "\n*Today*:\n- %?\n*Blocked / Waiting*:\n- \n")))
+            "\n*Today*:\n- %?\n*Blocked / Waiting*:\n"
+            (or (dm-org-capture--standup-previous-blocked text today) "- ")
+            "\n")))
 
 (defun dm-org-capture--hugo-commonplace ()
   "Return `org-capture' template string for new Hugo commonplace post.

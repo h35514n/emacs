@@ -40,6 +40,14 @@
                "*** 2026-11-12 Thursday\n*Today*:\n*Blocked / Waiting*:\n- x\n"
                "2026-11-13")))
 
+(ert-deftest dm-org-capture-standup-carries-previous-blocked ()
+  (let ((text "*** 2026-11-12 Thursday\n*Today*:\n- a\n*Blocked / Waiting*:\n- waiting on X\n"))
+    (should (equal (dm-org-capture--standup-previous-blocked text "2026-11-13")
+                   "- waiting on X"))
+    (should-not (dm-org-capture--standup-previous-blocked
+                 "*** 2026-11-12 Thursday\n*Today*:\n- a\n*Blocked / Waiting*:\n- \n"
+                 "2026-11-13"))))
+
 (ert-deftest dm-org-capture-standup-template-registered ()
   (should (assoc "u" org-capture-templates)))
 
